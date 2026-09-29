@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRouter from './routes/auth.routes';
 import profileRouter from './routes/profile.routes';
+import scraperRouter from './routes/scraper.routes';
+import companyRouter from './routes/company.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { sendError } from './utils/apiResponse';
 
@@ -30,6 +32,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // Application Routes
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/scraper', scraperRouter);
+app.use('/api/companies', companyRouter);
 
 // Catch 404 Not Found for undefined routes
 app.use((_req: Request, res: Response) => {
