@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { runCompanyRagPipeline, ingestCompanyFinancials } from '../services/rag';
 import { handleFinancialChat } from '../services/ai';
+import {
+  generateBuyAnalysis,
+  generateSellAnalysis,
+} from '../services/buySellAnalysis.service';
 import { sendSuccess, sendError } from '../utils/apiResponse';
 
 const analyzeCompany = async (
@@ -13,6 +17,50 @@ const analyzeCompany = async (
     const result = await runCompanyRagPipeline({ companyId, query });
 
     sendSuccess(res, 200, 'Company RAG analysis generated successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const buyAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { companyId, investmentAmount, investmentDuration } = req.body;
+    const userId = req.user?.userId;
+
+    const result = await generateBuyAnalysis({
+      companyId,
+      userId,
+      investmentAmount,
+      investmentDuration,
+    });
+
+    sendSuccess(res, 200, 'AI Buy Analysis generated successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const sellAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { companyId, purchasePrice, quantityHeld, sharesHeld } = req.body;
+    const userId = req.user?.userId;
+
+    const result = await generateSellAnalysis({
+      companyId,
+      userId,
+      purchasePrice,
+      quantityHeld: quantityHeld || sharesHeld,
+    });
+
+    sendSuccess(res, 200, 'AI Sell Analysis generated successfully', result);
   } catch (error) {
     next(error);
   }
@@ -64,4 +112,11 @@ const ingestCompany = async (
   }
 };
 
-export { analyzeCompany, chatWithCompany, ingestCompany };
+export {
+  analyzeCompany,
+  buyAnalysis,
+  sellAnalysis,
+  chatWithCompany,
+  ingestCompany,
+};
+
