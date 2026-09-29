@@ -57,6 +57,15 @@ export const companyApi = {
     return res.data.data?.sectors || [];
   },
 
+  async refreshCompanyData(id: string): Promise<Company> {
+    const res = await apiClient.post<ApiResponse<any>>(`/companies/${id}/refresh`);
+    const company = res.data.data?.company || res.data.data;
+    if (!company) {
+      throw new Error(res.data.message || 'Failed to refresh company data');
+    }
+    return company;
+  },
+
   async liveSearch(query: string): Promise<LiveSearchResultItem[]> {
     if (!query || !query.trim()) return [];
     try {

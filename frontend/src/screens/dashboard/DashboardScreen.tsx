@@ -48,15 +48,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     setRefreshing(false);
   };
 
-  const handleOpenScenario = (company: DashboardCompanySummary) => {
-    navigation.navigate('Scenarios', {
-      companyId: company.companyId,
-      companyName: company.companyName,
-      symbol: company.symbol,
-      sharePrice: company.latestSharePrice,
-    });
-  };
-
   const handleOpenAnalysis = (company: DashboardCompanySummary) => {
     navigation.navigate('Analysis', {
       companyId: company.companyId,
@@ -429,20 +420,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
                         })
                       }
                       variant="primary"
-                      size="sm"
-                      style={styles.cardBtn}
-                    />
-                    <Button
-                      title="Run Scenario"
-                      onPress={() =>
-                        navigation.navigate('Scenarios', {
-                          companyId: alloc.companyId,
-                          symbol: alloc.symbol,
-                          sharePrice: alloc.sharePrice,
-                          companyName: alloc.companyName,
-                        })
-                      }
-                      variant="secondary"
                       size="sm"
                       style={styles.cardBtn}
                     />

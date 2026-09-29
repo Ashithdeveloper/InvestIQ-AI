@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { runCompanyRagPipeline, ingestCompanyFinancials } from '../services/rag';
-import { handleFinancialChat } from '../services/ai';
+import { handleFinancialChat, streamFinancialChat } from '../services/ai';
 import {
   generateBuyAnalysis,
   generateSellAnalysis,
@@ -78,15 +78,63 @@ const chatWithCompany = async (
       return;
     }
 
-    const { companyId, message, sessionId } = req.body;
+    const { companyId, message, sessionId, refreshData } = req.body;
+
     const result = await handleFinancialChat({
       userId,
       companyId,
       message,
       sessionId,
+      refreshData: Boolean(refreshData),
     });
 
     sendSuccess(res, 200, 'Chat response generated successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const streamChatWithCompany = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.userId || 'guest-investor';
+    const { companyId, message, sessionId, refreshData } = req.body;
+
+    // Configure Server-Sent Events (SSE) streaming headers
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    const sendEvent = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    await streamFinancialChat({
+      userId,
+      companyId,
+      message,
+      sessionId,
+      refreshData: Boolean(refreshData),
+      onMetadata: (metadata) => {
+        sendEvent('metadata', metadata);
+      },
+      onToken: (token) => {
+        sendEvent('token', { token });
+      },
+      onComplete: (summary) => {
+        sendEvent('done', summary);
+        res.end();
+      },
+      onError: (err) => {
+        sendEvent('error', { error: err.message });
+        res.end();
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -117,6 +165,7 @@ export {
   buyAnalysis,
   sellAnalysis,
   chatWithCompany,
+  streamChatWithCompany,
   ingestCompany,
 };
 

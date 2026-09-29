@@ -4,6 +4,7 @@ import {
   buyAnalysis,
   sellAnalysis,
   chatWithCompany,
+  streamChatWithCompany,
   ingestCompany,
 } from '../controllers/ai.controller';
 import {
@@ -49,6 +50,14 @@ aiRouter.post(
   authenticateToken,
   validateRequest(financialChatSchema),
   chatWithCompany
+);
+
+// 4b. POST /api/ai/chat/stream - Real-time Streaming Financial Chat with SSE
+aiRouter.post(
+  '/chat/stream',
+  optionalAuthenticateToken,
+  validateRequest(financialChatSchema),
+  streamChatWithCompany
 );
 
 // 5. POST /api/ai/ingest/company/:id - Ingest Financial Documents into Qdrant (Requires Auth)

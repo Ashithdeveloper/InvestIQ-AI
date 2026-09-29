@@ -404,6 +404,20 @@ export interface ChatMessage {
   timestamp?: string;
   sources?: string[];
   reportingPeriods?: string[];
+  isLiveScraped?: boolean;
+  scrapedAt?: string;
+  companyInfo?: {
+    symbol?: string;
+    companyName?: string;
+    sharePrice?: number | null;
+    high52Week?: number | null;
+    low52Week?: number | null;
+    peRatio?: number | null;
+    roe?: number | null;
+    roce?: number | null;
+    opm?: number | null;
+    debtToEquity?: number | null;
+  };
 }
 
 export interface ChatServiceResponse {
@@ -419,6 +433,7 @@ export interface SendChatMessagePayload {
   companyId: string;
   message: string;
   sessionId?: string;
+  refreshData?: boolean;
 }
 
 // ----------------------------------------------------------------------------
