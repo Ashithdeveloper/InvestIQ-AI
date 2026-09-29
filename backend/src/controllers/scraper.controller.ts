@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { scrapeCompanyData } from '../services/scraper.service';
-import { saveOrUpdateCompany, refreshCompanyData } from '../services/company.service';
+import {
+  saveOrUpdateCompany,
+  refreshCompanyData,
+  findOrScrapeCompany,
+} from '../services/company.service';
 import { getIngestionProgress, runIngestionPipeline } from '../services/ingestion.pipeline';
 import { sendSuccess } from '../utils/apiResponse';
 
@@ -85,5 +89,40 @@ const triggerPipeline = async (
   }
 };
 
-export { scrapeCompany, refreshCompany, getPipelineStatus, triggerPipeline };
+const findAndScrapeStock = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { query } = req.body;
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'Search query or Screener.in URL is required',
+        data: null,
+      });
+      return;
+    }
+
+    const result = await findOrScrapeCompany(query.trim());
+
+    sendSuccess(
+      res,
+      result.isNew ? 201 : 200,
+      result.message,
+      result.company
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export {
+  scrapeCompany,
+  refreshCompany,
+  getPipelineStatus,
+  triggerPipeline,
+  findAndScrapeStock,
+};
 

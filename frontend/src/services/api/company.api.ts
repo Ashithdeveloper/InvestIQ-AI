@@ -28,13 +28,26 @@ export const companyApi = {
   },
 
   async getCompanyById(idOrSymbol: string): Promise<Company> {
-    const res = await apiClient.get<ApiResponse<{ company: Company }>>(
+    const res = await apiClient.get<ApiResponse<any>>(
       `/companies/${idOrSymbol}`
     );
-    if (!res.data.data?.company) {
+    const company = res.data.data?.company || res.data.data;
+    if (!company) {
       throw new Error(res.data.message || 'Company not found');
     }
-    return res.data.data.company;
+    return company;
+  },
+
+  async findAndScrapeCompany(query: string): Promise<Company> {
+    const res = await apiClient.post<ApiResponse<any>>(
+      '/companies/find-and-scrape',
+      { query }
+    );
+    const company = res.data.data?.company || res.data.data;
+    if (!company) {
+      throw new Error(res.data.message || 'Unable to find or scrape stock from Screener.in');
+    }
+    return company;
   },
 
   async getSectors(): Promise<string[]> {
@@ -43,4 +56,27 @@ export const companyApi = {
     );
     return res.data.data?.sectors || [];
   },
+
+  async liveSearch(query: string): Promise<LiveSearchResultItem[]> {
+    if (!query || !query.trim()) return [];
+    try {
+      const res = await apiClient.get<ApiResponse<LiveSearchResultItem[]>>('/companies/live-search', {
+        params: { q: query.trim() },
+      });
+      return res.data.data || [];
+    } catch {
+      return [];
+    }
+  },
 };
+
+export interface LiveSearchResultItem {
+  id: string;
+  name: string;
+  symbol: string;
+  sector?: string;
+  sharePrice?: number | null;
+  inDatabase: boolean;
+  companyId?: string;
+  url?: string;
+}

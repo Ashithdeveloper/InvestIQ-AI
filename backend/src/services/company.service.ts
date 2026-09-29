@@ -1,6 +1,12 @@
 import { isValidObjectId } from 'mongoose';
 import Company, { ICompany } from '../models/Company.model';
-import { ScrapedCompanyData, scrapeCompanyData } from './scraper.service';
+import {
+  ScrapedCompanyData,
+  scrapeCompanyData,
+  searchAndResolveScreenerCompany,
+  searchScreenerSuggestions,
+} from './scraper.service';
+import { ingestCompanyFinancials } from './rag/ingestion/ingestion.service';
 
 export interface CompanyListResult {
   companies: ICompany[];
@@ -202,6 +208,70 @@ const getCompanyById = async (id: string): Promise<ICompany> => {
   return company;
 };
 
+const findOrScrapeCompany = async (
+  query: string
+): Promise<{ company: ICompany; isNew: boolean; message: string }> => {
+  const trimmed = query.trim();
+
+  // 1. Check if already stored in MongoDB (case-insensitive symbol or regex name match)
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existing = await Company.findOne({
+      $or: [
+        { symbol: trimmed.toUpperCase() },
+        { companyName: new RegExp(`^${escaped}$`, 'i') },
+      ],
+    });
+
+    if (existing && existing.sharePrice !== null && existing.sharePrice !== undefined) {
+      return {
+        company: existing,
+        isNew: false,
+        message: 'Stock found in verified database',
+      };
+    }
+  }
+
+  // 2. Resolve Screener URL and canonical symbol
+  const resolved = await searchAndResolveScreenerCompany(trimmed);
+
+  // Check MongoDB again with resolved symbol and profileUrl
+  const existingByResolved = await Company.findOne({
+    $or: [{ symbol: resolved.symbol.toUpperCase() }, { profileUrl: resolved.url }],
+  });
+
+  if (
+    existingByResolved &&
+    existingByResolved.sharePrice !== null &&
+    existingByResolved.sharePrice !== undefined
+  ) {
+    return {
+      company: existingByResolved,
+      isNew: false,
+      message: 'Stock found in verified database',
+    };
+  }
+
+  // 3. Scrape company from Screener.in
+  const scrapedData = await scrapeCompanyData(resolved.url, resolved.symbol);
+  const { company: savedCompany, isNew } = await saveOrUpdateCompany(scrapedData);
+
+  // 4. Ingest financial documents into vector store for RAG & AI analysis
+  try {
+    await ingestCompanyFinancials(savedCompany._id.toString());
+  } catch (ragErr) {
+    console.warn(`[Find & Scrape] Vector ingestion skipped for ${savedCompany.symbol}:`, ragErr);
+  }
+
+  return {
+    company: savedCompany,
+    isNew,
+    message: isNew
+      ? `Stock ${savedCompany.symbol} successfully scraped and analyzed!`
+      : `Stock ${savedCompany.symbol} data refreshed!`,
+  };
+};
+
 const refreshCompanyData = async (id: string): Promise<ICompany> => {
   const company = await getCompanyById(id);
 
@@ -211,6 +281,68 @@ const refreshCompanyData = async (id: string): Promise<ICompany> => {
   return updatedCompany;
 };
 
+export interface LiveSearchResultItem {
+  id: string;
+  name: string;
+  symbol: string;
+  sector?: string;
+  sharePrice?: number | null;
+  inDatabase: boolean;
+  companyId?: string;
+  url?: string;
+}
+
+const liveSearchCompanies = async (query: string): Promise<LiveSearchResultItem[]> => {
+  const q = (query || '').trim();
+  if (!q) return [];
+
+  // 1. Local database fast search
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const localMatches = await Company.find({
+    $or: [
+      { symbol: { $regex: `^${escaped}`, $options: 'i' } },
+      { companyName: { $regex: escaped, $options: 'i' } },
+      { symbol: { $regex: escaped, $options: 'i' } },
+    ],
+  })
+    .select('symbol companyName sector sharePrice _id')
+    .limit(6);
+
+  const localMap = new Set(localMatches.map((c) => c.symbol.toUpperCase()));
+
+  const results: LiveSearchResultItem[] = localMatches.map((c) => ({
+    id: c._id.toString(),
+    companyId: c._id.toString(),
+    symbol: c.symbol,
+    name: c.companyName,
+    sector: c.sector,
+    sharePrice: c.sharePrice,
+    inDatabase: true,
+  }));
+
+  // 2. Screener.in live search autocomplete suggestions
+  try {
+    const screenerMatches = await searchScreenerSuggestions(q);
+    for (const item of screenerMatches) {
+      const symUpper = item.symbol.toUpperCase();
+      if (!localMap.has(symUpper)) {
+        results.push({
+          id: `screener-${item.id}`,
+          symbol: symUpper,
+          name: item.name,
+          inDatabase: false,
+          url: item.url,
+        });
+        localMap.add(symUpper);
+      }
+    }
+  } catch {
+    // If external call fails, return local matches smoothly
+  }
+
+  return results.slice(0, 10);
+};
+
 export {
   saveOrUpdateCompany,
   getCompanies,
@@ -218,4 +350,6 @@ export {
   getAvailableSectors,
   getCompanyById,
   refreshCompanyData,
+  findOrScrapeCompany,
+  liveSearchCompanies,
 };

@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import {
   parseFinancialNumber,
   parseHighLow,
@@ -26,19 +26,87 @@ export interface ScrapedCompanyData {
   lastUpdated: Date;
 }
 
+// In-memory cache for scraped data to avoid duplicate fetches for same URL
+const scrapedDataCache = new Map<string, { data: ScrapedCompanyData; timestamp: number }>();
+const SCRAPE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+let browserInstance: Browser | null = null;
+let contextInstance: BrowserContext | null = null;
+
+const LAUNCH_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--disable-blink-features=AutomationControlled',
+];
+
 const launchBrowser = async (): Promise<Browser> => {
-  // Attempt with installed Google Chrome channel first
+  if (browserInstance && browserInstance.isConnected()) {
+    return browserInstance;
+  }
+  contextInstance = null;
+
   try {
-    return await chromium.launch({ channel: 'chrome', headless: true });
+    browserInstance = await chromium.launch({
+      headless: true,
+      args: LAUNCH_ARGS,
+    });
   } catch {
-    // Fall back to Microsoft Edge channel
     try {
-      return await chromium.launch({ channel: 'msedge', headless: true });
+      browserInstance = await chromium.launch({
+        channel: 'chrome',
+        headless: true,
+        args: LAUNCH_ARGS,
+      });
     } catch {
-      // Fall back to standard Playwright Chromium
-      return await chromium.launch({ headless: true });
+      try {
+        browserInstance = await chromium.launch({
+          channel: 'msedge',
+          headless: true,
+          args: LAUNCH_ARGS,
+        });
+      } catch {
+        browserInstance = await chromium.launch({ headless: true });
+      }
     }
   }
+  return browserInstance;
+};
+
+const getContext = async (): Promise<BrowserContext> => {
+  if (contextInstance && browserInstance && browserInstance.isConnected()) {
+    return contextInstance;
+  }
+
+  const browser = await launchBrowser();
+  contextInstance = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    viewport: { width: 1440, height: 900 },
+    ignoreHTTPSErrors: true,
+    extraHTTPHeaders: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Sec-Ch-Ua': '"Chromium";v="124", "Not:A-Brand";v="8"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+    },
+  });
+  return contextInstance;
+};
+
+const closeScraperBrowser = async (): Promise<void> => {
+  if (contextInstance) {
+    await contextInstance.close().catch(() => {});
+    contextInstance = null;
+  }
+  if (browserInstance) {
+    await browserInstance.close().catch(() => {});
+    browserInstance = null;
+  }
+  scrapedDataCache.clear();
 };
 
 const extractTable = async (
@@ -111,36 +179,43 @@ const getLatestRowValue = (
   return null;
 };
 
-const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
-  let browser: Browser | null = null;
+const scrapeCompanyData = async (
+  url: string,
+  preferredSymbol?: string
+): Promise<ScrapedCompanyData> => {
+  // 1. Check in-memory cache first to avoid duplicate network fetches
+  const cached = scrapedDataCache.get(url);
+  if (cached && Date.now() - cached.timestamp < SCRAPE_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  let page: Page | null = null;
 
   try {
-    browser = await launchBrowser();
-    const context = await browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 800 },
-    });
-
-    const page = await context.newPage();
+    const context = await getContext();
+    page = await context.newPage();
+    page.setDefaultTimeout(30000);
 
     // Respectful navigation with retry for transient network glitches
     let currentUrl = url;
     let response = null;
     let navError: Error | null = null;
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         response = await page.goto(currentUrl, {
-          timeout: 30000,
+          timeout: 35000,
           waitUntil: 'domcontentloaded',
         });
         navError = null;
         break;
       } catch (err) {
         navError = err instanceof Error ? err : new Error(String(err));
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (attempt < 3) {
+          // Close stale socket page and spawn a fresh page to avoid net::ERR_SOCKET_NOT_CONNECTED
+          await page.close().catch(() => {});
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          page = await context.newPage();
         }
       }
     }
@@ -152,10 +227,19 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
     // If 404 on /consolidated/ URL, fallback to standalone page
     if (response && response.status() === 404 && currentUrl.includes('/consolidated/')) {
       currentUrl = currentUrl.replace('/consolidated/', '/');
-      response = await page.goto(currentUrl, {
-        timeout: 30000,
-        waitUntil: 'domcontentloaded',
-      });
+      try {
+        response = await page.goto(currentUrl, {
+          timeout: 35000,
+          waitUntil: 'domcontentloaded',
+        });
+      } catch {
+        await page.close().catch(() => {});
+        page = await context.newPage();
+        response = await page.goto(currentUrl, {
+          timeout: 35000,
+          waitUntil: 'domcontentloaded',
+        });
+      }
     }
 
     if (response && response.status() === 404) {
@@ -168,7 +252,7 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
     const companyName = await page
       .$eval('h1', (el) => (el.textContent || '').trim())
       .catch(async () => {
-        const title = await page.title();
+        const title = await page!.title();
         return title.split('|')[0]?.trim() || '';
       });
 
@@ -182,7 +266,8 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
 
     // 2. Company Symbol
     const symbolFromUrl = extractSymbolFromUrl(currentUrl);
-    const symbol = symbolFromUrl || companyName.split(' ')[0].toUpperCase();
+    const symbol =
+      preferredSymbol?.toUpperCase() || symbolFromUrl || companyName.split(' ')[0].toUpperCase();
 
     // 3. Sector
     const sector = await page
@@ -224,8 +309,39 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
       if (r.name) ratioMap.set(r.name.toLowerCase(), r.value);
     });
 
-    const marketCap = parseFinancialNumber(ratioMap.get('market cap'));
-    const sharePrice = parseFinancialNumber(ratioMap.get('current price'));
+    let marketCap = parseFinancialNumber(ratioMap.get('market cap'));
+    let sharePrice = parseFinancialNumber(ratioMap.get('current price'));
+
+    // If top ratios are empty on consolidated page, fallback to standalone page
+    if (marketCap === null && sharePrice === null && currentUrl.includes('/consolidated/')) {
+      const standaloneUrl = currentUrl.replace('/consolidated/', '/');
+      try {
+        const standaloneResp = await page.goto(standaloneUrl, {
+          timeout: 25000,
+          waitUntil: 'domcontentloaded',
+        });
+        if (standaloneResp && standaloneResp.ok()) {
+          currentUrl = standaloneUrl;
+          const freshRatiosRaw = await page
+            .$$eval('#top-ratios li', (items) =>
+              items.map((li) => {
+                const name = li.querySelector('.name')?.textContent?.trim() || '';
+                const value = li.querySelector('.value')?.textContent?.trim() || '';
+                return { name, value };
+              })
+            )
+            .catch(() => []);
+          freshRatiosRaw.forEach((r) => {
+            if (r.name) ratioMap.set(r.name.toLowerCase(), r.value);
+          });
+          marketCap = parseFinancialNumber(ratioMap.get('market cap'));
+          sharePrice = parseFinancialNumber(ratioMap.get('current price'));
+        }
+      } catch {
+        // Retain any existing values if standalone navigation fails
+      }
+    }
+
     const { high: high52Week, low: low52Week } = parseHighLow(ratioMap.get('high / low'));
     const peRatio = parseFinancialNumber(ratioMap.get('stock p/e'));
     const bookValue = parseFinancialNumber(ratioMap.get('book value'));
@@ -283,7 +399,7 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
       eps,
     };
 
-    return {
+    const result: ScrapedCompanyData = {
       companyName,
       symbol,
       sector,
@@ -298,6 +414,9 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
       dataSource: 'Screener.in',
       lastUpdated: new Date(),
     };
+
+    scrapedDataCache.set(url, { data: result, timestamp: Date.now() });
+    return result;
   } catch (err: unknown) {
     const error = err as { name?: string; message?: string; statusCode?: number };
     if (error.name === 'TimeoutError' || (error.message && error.message.includes('timeout'))) {
@@ -309,10 +428,134 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
     }
     throw err;
   } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
+    if (page) {
+      await page.close().catch(() => {});
     }
   }
 };
 
-export { scrapeCompanyData, launchBrowser };
+export interface ResolvedScreenerCompany {
+  url: string;
+  symbol: string;
+  name?: string;
+}
+
+const searchAndResolveScreenerCompany = async (
+  query: string
+): Promise<ResolvedScreenerCompany> => {
+  const trimmed = query.trim();
+
+  // 1. Direct Screener URL provided
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const symbol = extractSymbolFromUrl(trimmed);
+    return { url: trimmed, symbol: symbol || 'UNKNOWN' };
+  }
+
+  // 2. Query Screener.in search API
+  try {
+    const searchApiUrl = `https://www.screener.in/api/company/search/?q=${encodeURIComponent(trimmed)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const resp = await fetch(searchApiUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (resp.ok) {
+      const searchResults = (await resp.json()) as Array<{
+        id: number;
+        name: string;
+        url: string;
+      }>;
+
+      if (Array.isArray(searchResults) && searchResults.length > 0) {
+        const topMatch = searchResults[0];
+        const relativeUrl = topMatch.url.startsWith('/') ? topMatch.url : `/${topMatch.url}`;
+        const fullUrl = `https://www.screener.in${relativeUrl}`;
+        const symbol = extractSymbolFromUrl(fullUrl) || trimmed.toUpperCase();
+        return {
+          url: fullUrl,
+          symbol,
+          name: topMatch.name,
+        };
+      }
+    }
+  } catch {
+    // If API search times out or fails, proceed to fallback
+  }
+
+  // 3. Fallback: standard company URL construction
+  const cleanSymbol = trimmed.replace(/[^a-zA-Z0-9&]/g, '').toUpperCase();
+  return {
+    url: `https://www.screener.in/company/${cleanSymbol}/consolidated/`,
+    symbol: cleanSymbol,
+  };
+};
+
+export interface ScreenerSuggestion {
+  id: number;
+  name: string;
+  symbol: string;
+  url: string;
+}
+
+const searchScreenerSuggestions = async (
+  query: string
+): Promise<ScreenerSuggestion[]> => {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 2) return [];
+
+  try {
+    const searchApiUrl = `https://www.screener.in/api/company/search/?q=${encodeURIComponent(trimmed)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+
+    const resp = await fetch(searchApiUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (resp.ok) {
+      const searchResults = (await resp.json()) as Array<{
+        id: number;
+        name: string;
+        url: string;
+      }>;
+
+      if (Array.isArray(searchResults)) {
+        return searchResults.slice(0, 8).map((item) => {
+          const relativeUrl = item.url.startsWith('/') ? item.url : `/${item.url}`;
+          const fullUrl = `https://www.screener.in${relativeUrl}`;
+          const symbol = extractSymbolFromUrl(fullUrl) || item.name.split(' ')[0].toUpperCase();
+          return {
+            id: item.id,
+            name: item.name,
+            symbol,
+            url: fullUrl,
+          };
+        });
+      }
+    }
+  } catch {
+    // Fail gracefully
+  }
+  return [];
+};
+
+export {
+  scrapeCompanyData,
+  launchBrowser,
+  getContext,
+  searchAndResolveScreenerCompany,
+  searchScreenerSuggestions,
+  closeScraperBrowser,
+};

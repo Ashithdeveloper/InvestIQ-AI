@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Company } from '../types';
-import { companyApi } from '../services/api/company.api';
+import { companyApi, LiveSearchResultItem } from '../services/api/company.api';
 
 interface CompanyState {
   companies: Company[];
@@ -8,14 +8,20 @@ interface CompanyState {
   sectors: string[];
   activeSector: string | null;
   searchQuery: string;
+  liveSuggestions: LiveSearchResultItem[];
   page: number;
   totalPages: number;
   totalCount: number;
   isLoading: boolean;
   isLoadingDetails: boolean;
+  isScrapingStock: boolean;
+  isLiveSearching: boolean;
   error: string | null;
   fetchCompanies: (options?: { page?: number; sector?: string; search?: string }) => Promise<void>;
   searchCompanies: (query: string) => Promise<void>;
+  fetchLiveSuggestions: (query: string) => Promise<void>;
+  clearLiveSuggestions: () => void;
+  findAndScrapeCompany: (query: string) => Promise<Company | null>;
   fetchCompanyDetails: (idOrSymbol: string) => Promise<Company | null>;
   fetchSectors: () => Promise<void>;
   setActiveSector: (sector: string | null) => void;
@@ -30,11 +36,14 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
   sectors: [],
   activeSector: null,
   searchQuery: '',
+  liveSuggestions: [],
   page: 1,
   totalPages: 1,
   totalCount: 0,
   isLoading: false,
   isLoadingDetails: false,
+  isScrapingStock: false,
+  isLiveSearching: false,
   error: null,
 
   async fetchCompanies(options = {}): Promise<void> {
@@ -83,6 +92,51 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Search failed';
       set({ isLoading: false, error: msg });
+    }
+  },
+
+  async fetchLiveSuggestions(query: string): Promise<void> {
+    const q = query.trim();
+    if (!q) {
+      set({ liveSuggestions: [], isLiveSearching: false });
+      return;
+    }
+    set({ isLiveSearching: true });
+    try {
+      const suggestions = await companyApi.liveSearch(q);
+      set({ liveSuggestions: suggestions, isLiveSearching: false });
+    } catch {
+      set({ liveSuggestions: [], isLiveSearching: false });
+    }
+  },
+
+  clearLiveSuggestions(): void {
+    set({ liveSuggestions: [], isLiveSearching: false });
+  },
+
+  async findAndScrapeCompany(query: string): Promise<Company | null> {
+    set({ isScrapingStock: true, error: null });
+    try {
+      const company = await companyApi.findAndScrapeCompany(query);
+      set((state) => {
+        const exists = state.companies.some((c) => c._id === company._id);
+        return {
+          companies: exists
+            ? state.companies.map((c) => (c._id === company._id ? company : c))
+            : [company, ...state.companies],
+          selectedCompany: company,
+          isScrapingStock: false,
+          error: null,
+        };
+      });
+      return company;
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Unable to find or scrape stock from Screener.in';
+      set({ isScrapingStock: false, error: msg });
+      return null;
     }
   },
 

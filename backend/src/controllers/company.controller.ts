@@ -4,6 +4,8 @@ import {
   searchCompanies,
   getAvailableSectors,
   getCompanyById,
+  findOrScrapeCompany,
+  liveSearchCompanies,
 } from '../services/company.service';
 import {
   getCompaniesQuerySchema,
@@ -73,9 +75,54 @@ const getCompanyDetails = async (
   }
 };
 
+const findAndScrapeCompanyHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { query } = req.body;
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'Search query or Screener.in URL is required',
+        data: null,
+      });
+      return;
+    }
+
+    const result = await findOrScrapeCompany(query.trim());
+
+    sendSuccess(
+      res,
+      result.isNew ? 201 : 200,
+      result.message,
+      result.company
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+const liveSearchCompaniesHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const results = await liveSearchCompanies(q);
+    sendSuccess(res, 200, 'Live search results retrieved successfully', results);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   getAllCompanies,
   searchCompaniesHandler,
   getSectors,
   getCompanyDetails,
+  findAndScrapeCompanyHandler,
+  liveSearchCompaniesHandler,
 };

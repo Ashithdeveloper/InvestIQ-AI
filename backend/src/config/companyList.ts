@@ -18,7 +18,7 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
   { symbol: 'HCLTECH', url: 'https://www.screener.in/company/HCLTECH/consolidated/', sector: 'IT - Software' },
   { symbol: 'WIPRO', url: 'https://www.screener.in/company/WIPRO/consolidated/', sector: 'IT - Software' },
   { symbol: 'TECHM', url: 'https://www.screener.in/company/TECHM/consolidated/', sector: 'IT - Software' },
-  { symbol: 'LTIM', url: 'https://www.screener.in/company/LTIM/consolidated/', sector: 'IT - Software' },
+  { symbol: 'LTIM', url: 'https://www.screener.in/company/LTM/consolidated/', sector: 'IT - Software' },
 
   // ── Banking & Financial Services ──────────────────────────────────────
   { symbol: 'HDFCBANK', url: 'https://www.screener.in/company/HDFCBANK/consolidated/', sector: 'Banks' },
@@ -41,7 +41,7 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
 
   // ── Automobiles ───────────────────────────────────────────────────────
   { symbol: 'MARUTI', url: 'https://www.screener.in/company/MARUTI/consolidated/', sector: 'Automobiles' },
-  { symbol: 'TATAMOTORS', url: 'https://www.screener.in/company/TATAMOTORS/', sector: 'Automobiles' },
+  { symbol: 'TATAMOTORS', url: 'https://www.screener.in/company/TMCV/consolidated/', sector: 'Automobiles' },
   { symbol: 'M&M', url: 'https://www.screener.in/company/M%26M/consolidated/', sector: 'Automobiles' },
   { symbol: 'BAJAJ-AUTO', url: 'https://www.screener.in/company/BAJAJ-AUTO/consolidated/', sector: 'Automobiles' },
   { symbol: 'HEROMOTOCO', url: 'https://www.screener.in/company/HEROMOTOCO/consolidated/', sector: 'Automobiles' },
@@ -76,7 +76,7 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
   { symbol: 'BHARTIARTL', url: 'https://www.screener.in/company/BHARTIARTL/consolidated/', sector: 'Telecom' },
 
   // ── Insurance ─────────────────────────────────────────────────────────
-  { symbol: 'SBILIFE', url: 'https://www.screener.in/company/SBILIFE/consolidated/', sector: 'Insurance' },
+  { symbol: 'SBILIFE', url: 'https://www.screener.in/company/SBILIFE/', sector: 'Insurance' },
   { symbol: 'HDFCLIFE', url: 'https://www.screener.in/company/HDFCLIFE/consolidated/', sector: 'Insurance' },
 
   // ── Conglomerates & Diversified ───────────────────────────────────────
@@ -90,8 +90,8 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
   // ── Real Estate ───────────────────────────────────────────────────────
   { symbol: 'DLF', url: 'https://www.screener.in/company/DLF/consolidated/', sector: 'Real Estate' },
 
-  // ── Media & Entertainment ─────────────────────────────────────────────
-  { symbol: 'ZOMATO', url: 'https://www.screener.in/company/ZOMATO/', sector: 'Internet Software' },
+  // ── Consumer Durables & Retail ─────────────────────────────────────────
+  { symbol: 'TITAN', url: 'https://www.screener.in/company/TITAN/consolidated/', sector: 'Consumer Durables' },
 
   // ── Capital Goods ─────────────────────────────────────────────────────
   { symbol: 'SIEMENS', url: 'https://www.screener.in/company/SIEMENS/consolidated/', sector: 'Capital Goods - Electrical' },

@@ -41,13 +41,22 @@ export const CompanyDetailScreen: React.FC<CompanyDetailScreenProps> = ({
   const insets = useSafeAreaInsets();
   const companyId = route?.params?.companyId || '';
   const symbol = route?.params?.symbol || '';
-  const { selectedCompany, fetchCompanyDetails, isLoadingDetails, error } =
-    useCompanyStore();
+  const {
+    companies,
+    fetchCompanies,
+    selectedCompany,
+    fetchCompanyDetails,
+    isLoadingDetails,
+    error,
+  } = useCompanyStore();
 
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchCompanyDetails(companyId || symbol);
+    if (companies.length === 0) {
+      fetchCompanies();
+    }
   }, [companyId, symbol]);
 
   const onRefresh = async () => {
@@ -447,6 +456,97 @@ export const CompanyDetailScreen: React.FC<CompanyDetailScreenProps> = ({
                 style={{ marginTop: 8 }}
               />
             </Card>
+
+            {/* 6. Compare & Analyze Other Stocks */}
+            {companies.filter((c) => c._id !== company._id && c.symbol !== company.symbol).length > 0 && (
+              <>
+                <Text style={styles.sectionHeader}>Compare & Analyze Other Stocks</Text>
+                <Text style={styles.otherStocksContextSub}>
+                  Deterministic models, buy signals & risk metrics for other Indian companies:
+                </Text>
+                {companies
+                  .filter((c) => c._id !== company._id && c.symbol !== company.symbol)
+                  .slice(0, 6)
+                  .map((other) => {
+                    const otherMetrics = getStockRiskAndProfit(other);
+                    return (
+                      <Card key={other._id} variant="default" style={styles.otherStockCard}>
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() =>
+                            navigation?.navigate('CompanyDetail', {
+                              companyId: other._id,
+                              symbol: other.symbol,
+                              companyName: other.companyName,
+                            })
+                          }
+                          style={styles.otherStockTopRow}
+                        >
+                          <View style={{ flex: 1, paddingRight: 8 }}>
+                            <View style={styles.otherStockSymbolRow}>
+                              <Text style={styles.otherStockSymbol}>{other.symbol}</Text>
+                              <Text style={styles.otherStockSector}>· {other.sector}</Text>
+                            </View>
+                            <Text style={styles.otherStockName} numberOfLines={1}>
+                              {other.companyName}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.otherStockPrice}>
+                              {other.sharePrice !== null && other.sharePrice !== undefined
+                                ? `₹${other.sharePrice.toLocaleString('en-IN')}`
+                                : 'N/A'}
+                            </Text>
+                            <Text style={styles.otherStockRisk}>
+                              🛡️ {otherMetrics.riskPercentage}% Risk
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        <View style={styles.otherStockActionRow}>
+                          <TouchableOpacity
+                            style={styles.otherBtnPrimary}
+                            onPress={() =>
+                              navigation?.navigate('Analysis', {
+                                companyId: other._id,
+                                symbol: other.symbol,
+                              })
+                            }
+                          >
+                            <Text style={styles.otherBtnPrimaryText}>📊 Analysis</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.otherBtnBuy}
+                            onPress={() =>
+                              navigation?.navigate('BuyAnalysis', {
+                                companyId: other._id,
+                                symbol: other.symbol,
+                                companyName: other.companyName,
+                              })
+                            }
+                          >
+                            <Text style={styles.otherBtnBuyText}>🟢 Buy Analysis</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.otherBtnSell}
+                            onPress={() =>
+                              navigation?.navigate('SellAnalysis', {
+                                companyId: other._id,
+                                symbol: other.symbol,
+                                companyName: other.companyName,
+                              })
+                            }
+                          >
+                            <Text style={styles.otherBtnSellText}>🔴 Sell Analysis</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </Card>
+                    );
+                  })}
+              </>
+            )}
           </>
         ) : null}
       </ScrollView>
@@ -706,5 +806,99 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
     lineHeight: 18,
     marginBottom: 8,
+  },
+  otherStocksContextSub: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 12,
+  },
+  otherStockCard: {
+    marginBottom: 10,
+    padding: 12,
+    backgroundColor: '#0F141C',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  otherStockTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  otherStockSymbolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  otherStockSymbol: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#60A5FA',
+  },
+  otherStockSector: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  otherStockName: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  otherStockPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  otherStockRisk: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#F59E0B',
+    marginTop: 2,
+  },
+  otherStockActionRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  otherBtnPrimary: {
+    flex: 1,
+    backgroundColor: '#2563EB',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otherBtnPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  otherBtnBuy: {
+    flex: 1,
+    backgroundColor: '#064E3B',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  otherBtnBuyText: {
+    color: '#34D399',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  otherBtnSell: {
+    flex: 1,
+    backgroundColor: '#3F1212',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DC2626',
+  },
+  otherBtnSellText: {
+    color: '#F87171',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

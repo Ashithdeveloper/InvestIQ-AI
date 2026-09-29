@@ -63,15 +63,43 @@ const isDataStale = (company: ICompany): boolean => {
 const seedCompanyRecords = async (): Promise<number> => {
   let seededCount = 0;
 
-  for (const seed of INDIAN_COMPANY_SEED_LIST) {
-    const existing = await Company.findOne({
-      $or: [
-        { symbol: seed.symbol.toUpperCase() },
-        { profileUrl: seed.url },
-      ],
-    });
+  // Clean up any stale placeholder seed records that are no longer in INDIAN_COMPANY_SEED_LIST (e.g. ZOMATO)
+  const activeSymbols = INDIAN_COMPANY_SEED_LIST.map((s) => s.symbol.toUpperCase());
+  await Company.deleteMany({
+    symbol: { $nin: activeSymbols },
+    sharePrice: null,
+  });
 
-    if (!existing) {
+  for (const seed of INDIAN_COMPANY_SEED_LIST) {
+    const symbolMatches = await Company.find({ symbol: seed.symbol.toUpperCase() });
+    const urlMatches = await Company.find({ profileUrl: seed.url });
+    const matchMap = new Map<string, ICompany>();
+    [...symbolMatches, ...urlMatches].forEach((doc) => matchMap.set(doc._id.toString(), doc));
+    const allMatches = Array.from(matchMap.values());
+
+    if (allMatches.length > 1) {
+      // Keep the one with actual financial data, or the first one
+      const populated = allMatches.find((d) => d.sharePrice !== null && d.sharePrice !== undefined);
+      const keepDoc = populated || allMatches[0];
+      const duplicateIds = allMatches
+        .filter((d) => d._id.toString() !== keepDoc._id.toString())
+        .map((d) => d._id);
+
+      await Company.deleteMany({ _id: { $in: duplicateIds } });
+
+      keepDoc.symbol = seed.symbol.toUpperCase();
+      keepDoc.profileUrl = seed.url;
+      keepDoc.sector = seed.sector;
+      await keepDoc.save();
+    } else if (allMatches.length === 1) {
+      const existing = allMatches[0];
+      if (existing.profileUrl !== seed.url || existing.symbol !== seed.symbol.toUpperCase()) {
+        existing.profileUrl = seed.url;
+        existing.symbol = seed.symbol.toUpperCase();
+        existing.sector = seed.sector;
+        await existing.save();
+      }
+    } else {
       await Company.create({
         companyName: seed.symbol, // Placeholder name until scrape fills it
         symbol: seed.symbol.toUpperCase(),
@@ -96,7 +124,7 @@ const scrapeCompany = async (company: ICompany, seed: SeedCompany): Promise<bool
       ingestionError: null,
     });
 
-    const scrapedData = await scrapeCompanyData(seed.url);
+    const scrapedData = await scrapeCompanyData(seed.url, seed.symbol);
     await saveOrUpdateCompany(scrapedData);
 
     return true;
