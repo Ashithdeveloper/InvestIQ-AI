@@ -5,6 +5,8 @@ import authRouter from './routes/auth.routes';
 import profileRouter from './routes/profile.routes';
 import scraperRouter from './routes/scraper.routes';
 import companyRouter from './routes/company.routes';
+import analysisRouter from './routes/analysis.routes';
+import aiRouter from './routes/ai.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { sendError } from './utils/apiResponse';
 
@@ -34,6 +36,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/scraper', scraperRouter);
 app.use('/api/companies', companyRouter);
+app.use('/api/analysis', analysisRouter);
+app.use('/api/ai', aiRouter);
 
 // Catch 404 Not Found for undefined routes
 app.use((_req: Request, res: Response) => {
