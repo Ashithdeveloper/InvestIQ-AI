@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { scrapeCompanyData } from '../services/scraper.service';
 import { saveOrUpdateCompany, refreshCompanyData } from '../services/company.service';
+import { getIngestionProgress, runIngestionPipeline } from '../services/ingestion.pipeline';
 import { sendSuccess } from '../utils/apiResponse';
 
 const scrapeCompany = async (
@@ -49,4 +50,40 @@ const refreshCompany = async (
   }
 };
 
-export { scrapeCompany, refreshCompany };
+const getPipelineStatus = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const progress = getIngestionProgress();
+    sendSuccess(res, 200, 'Ingestion pipeline status retrieved successfully', progress);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const triggerPipeline = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Non-blocking trigger
+    setImmediate(() => {
+      runIngestionPipeline().catch((err) => {
+        console.error('[Pipeline] Trigger error:', err);
+      });
+    });
+
+    sendSuccess(res, 202, 'Ingestion pipeline initiated in background', {
+      started: true,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { scrapeCompany, refreshCompany, getPipelineStatus, triggerPipeline };
+

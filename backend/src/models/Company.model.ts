@@ -25,6 +25,8 @@ export interface IFinancialStatement {
   rows: IFinancialStatementRow[];
 }
 
+export type IngestionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'needs_refresh';
+
 export interface ICompany extends Document {
   _id: Types.ObjectId;
   companyName: string;
@@ -40,6 +42,8 @@ export interface ICompany extends Document {
   financialStatements: IFinancialStatement[];
   dataSource: string;
   lastUpdated: Date;
+  ingestionStatus: IngestionStatus;
+  ingestionError: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -158,6 +162,16 @@ const CompanySchema = new Schema<ICompany>(
     lastUpdated: {
       type: Date,
       default: Date.now,
+    },
+    ingestionStatus: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed', 'needs_refresh'],
+      default: 'pending',
+      index: true,
+    },
+    ingestionError: {
+      type: String,
+      default: null,
     },
   },
   {
