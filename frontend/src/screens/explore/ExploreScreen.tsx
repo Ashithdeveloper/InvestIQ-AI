@@ -7,16 +7,20 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Card,
   Input,
   Header,
+  Button,
   LoadingSkeleton,
   EmptyState,
   ErrorMessage,
 } from '../../components/common';
+
 import { useCompanyStore } from '../../stores/useCompanyStore';
 import { Company } from '../../types';
+import { getStockRiskAndProfit } from '../../utils/stockMetrics';
 
 interface ExploreScreenProps {
   navigation: {
@@ -25,6 +29,7 @@ interface ExploreScreenProps {
 }
 
 export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const {
     companies,
     sectors,
@@ -38,6 +43,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
     setActiveSector,
     setSearchQuery,
   } = useCompanyStore();
+
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,6 +72,8 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
   };
 
   const renderCompanyCard = ({ item }: { item: Company }) => {
+    const metrics = getStockRiskAndProfit(item);
+
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -86,6 +94,31 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
                   : 'N/A'}
               </Text>
               <Text style={styles.sectorText}>{item.sector}</Text>
+            </View>
+          </View>
+
+          {/* Risk Value & Profit Potential */}
+          <View style={styles.riskProfitRow}>
+            <View style={styles.riskBadge}>
+              <Text style={styles.riskLabel}>Risk Value</Text>
+              <Text
+                style={[
+                  styles.riskValue,
+                  metrics.riskPercentage <= 25
+                    ? { color: '#10B981' }
+                    : metrics.riskPercentage <= 60
+                    ? { color: '#F59E0B' }
+                    : { color: '#EF4444' },
+                ]}
+              >
+                🛡️ {metrics.riskPercentage}% ({metrics.riskLevel})
+              </Text>
+            </View>
+            <View style={styles.profitBadge}>
+              <Text style={styles.profitLabel}>Profit Potential</Text>
+              <Text style={styles.profitValue}>
+                📈 +{metrics.profitPercentage}% p.a.
+              </Text>
             </View>
           </View>
 
@@ -113,6 +146,48 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
                   : 'N/A'}
               </Text>
             </View>
+          </View>
+
+          {/* Action Buttons: Full Report, AI Buy Analysis, Ask AI */}
+          <View style={styles.cardActionsRow}>
+            <Button
+              title="Full Report"
+              onPress={() =>
+                navigation.navigate('Analysis', {
+                  companyId: item._id,
+                  symbol: item.symbol,
+                })
+              }
+              variant="outline"
+              size="sm"
+              style={styles.cardBtn}
+            />
+            <Button
+              title="AI Buy Analysis"
+              onPress={() =>
+                navigation.navigate('BuyAnalysis', {
+                  companyId: item._id,
+                  symbol: item.symbol,
+                  companyName: item.companyName,
+                })
+              }
+              variant="primary"
+              size="sm"
+              style={styles.cardBtn}
+            />
+            <Button
+              title="Ask AI"
+              onPress={() =>
+                navigation.navigate('Chat', {
+                  companyId: item._id,
+                  companyName: item.companyName,
+                  symbol: item.symbol,
+                })
+              }
+              variant="secondary"
+              size="sm"
+              style={styles.cardBtn}
+            />
           </View>
         </Card>
       </TouchableOpacity>
@@ -178,7 +253,12 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
           data={companies}
           keyExtractor={(item) => item._id}
           renderItem={renderCompanyCard}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -186,6 +266,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ navigation }) => {
               tintColor="#3B82F6"
             />
           }
+
           ListEmptyComponent={
             <EmptyState
               title="No Companies Found"
@@ -300,5 +381,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginTop: 2,
+  },
+  riskProfitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    gap: 8,
+  },
+  riskBadge: {
+    flex: 1,
+  },
+  riskLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  riskValue: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  profitBadge: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  profitLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  profitValue: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#34D399',
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  cardBtn: {
+    flex: 1,
   },
 });

@@ -6,8 +6,11 @@ import {
   ScrollView,
   RefreshControl,
   TextInput,
-  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   Card,
   Button,
@@ -36,6 +39,7 @@ export const SellAnalysisScreen: React.FC<SellAnalysisScreenProps> = ({
   route,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const companyId = route?.params?.companyId || '';
   const initialSymbol = route?.params?.symbol || '';
   const initialName = route?.params?.companyName || '';
@@ -85,7 +89,10 @@ export const SellAnalysisScreen: React.FC<SellAnalysisScreenProps> = ({
   const pnl = data?.hypotheticalProfitLoss;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Header
         title={`${symbol} · Sell & Hold Analysis`}
         subtitle="Deterioration Metrics, Valuation Risks & P&L"
@@ -93,7 +100,12 @@ export const SellAnalysisScreen: React.FC<SellAnalysisScreenProps> = ({
       />
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 20) + 36 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -102,6 +114,7 @@ export const SellAnalysisScreen: React.FC<SellAnalysisScreenProps> = ({
           />
         }
       >
+
         {isSellLoading && !data ? (
           <LoadingSkeleton message="Evaluating balance sheet risks, debt & sell indicators..." count={5} />
         ) : sellError && !data ? (
@@ -378,15 +391,17 @@ export const SellAnalysisScreen: React.FC<SellAnalysisScreenProps> = ({
           </>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
+
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#0A0D12',
   },
+
   scroll: {
     padding: 16,
     paddingBottom: 40,

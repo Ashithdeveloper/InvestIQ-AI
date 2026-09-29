@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header, Card } from '../../components/common';
 import { useChatStore } from '../../stores/useChatStore';
 import { useCompanyStore } from '../../stores/useCompanyStore';
@@ -28,7 +29,9 @@ interface AiChatScreenProps {
 }
 
 export const AiChatScreen: React.FC<AiChatScreenProps> = ({ route }) => {
+  const insets = useSafeAreaInsets();
   const { companies, fetchCompanies } = useCompanyStore();
+
   const {
     messages,
     selectedCompanyId,
@@ -127,7 +130,10 @@ export const AiChatScreen: React.FC<AiChatScreenProps> = ({ route }) => {
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.messagesScroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+
         {messages.length === 0 ? (
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeEmoji}>🤖</Text>
@@ -205,7 +211,7 @@ export const AiChatScreen: React.FC<AiChatScreenProps> = ({ route }) => {
       </ScrollView>
 
       {/* Input Bar */}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) + 4 }]}>
         <TextInput
           style={styles.textInput}
           placeholder={`Ask about ${selectedCompany?.symbol || 'company'}...`}
@@ -228,6 +234,7 @@ export const AiChatScreen: React.FC<AiChatScreenProps> = ({ route }) => {
     </KeyboardAvoidingView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

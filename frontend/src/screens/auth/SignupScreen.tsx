@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  
   Text,
   StyleSheet,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, Button, Card } from '../../components/common';
 import { useAuthStore } from '../../stores/useAuthStore';
 
@@ -19,6 +19,7 @@ interface SignupScreenProps {
 }
 
 export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,9 +68,19 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: Math.max(insets.top, 20) + 16,
+            paddingBottom: Math.max(insets.bottom, 20) + 16,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandHeader}>
           <Text style={styles.logoBadge}>InvestIQ · AI</Text>
           <Text style={styles.title}>Create Account</Text>
@@ -77,6 +88,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             Join InvestIQ to start smart, deterministic, data-driven investing.
           </Text>
         </View>
+
 
         <Card variant="elevated" style={styles.card}>
           {error ? (

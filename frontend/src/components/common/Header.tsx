@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HeaderProps {
   title: string;
@@ -14,23 +15,27 @@ export const Header: React.FC<HeaderProps> = ({
   onBack,
   rightAction,
 }) => {
+  const insets = useSafeAreaInsets();
+  const safeTopPadding = Math.max(insets.top, 16);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTopPadding + 4 }]}>
       <View style={styles.left}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
         ) : null}
-        <View>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <View style={styles.titleWrap}>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
         </View>
       </View>
       {rightAction ? <View style={styles.right}>{rightAction}</View> : null}
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -47,11 +52,17 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  titleWrap: {
+    flex: 1,
+    paddingRight: 8,
   },
   backBtn: {
     marginRight: 12,
     padding: 4,
   },
+
   backArrow: {
     color: '#3B82F6',
     fontSize: 24,

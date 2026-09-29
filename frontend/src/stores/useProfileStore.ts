@@ -6,6 +6,8 @@ import {
 } from '../types';
 import { profileApi } from '../services/api/profile.api';
 
+import { useAuthStore } from './useAuthStore';
+
 interface ProfileState {
   profile: FinancialProfile | null;
   isLoading: boolean;
@@ -33,6 +35,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         isLoading: false,
         error: null,
       });
+      useAuthStore.getState().updateUserFinancialProfile(profile);
       return profile;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch profile';
@@ -51,6 +54,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         isLoading: false,
         error: null,
       });
+      useAuthStore.getState().updateUserFinancialProfile(profile);
       return profile;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create profile';
@@ -69,6 +73,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         isLoading: false,
         error: null,
       });
+      useAuthStore.getState().updateUserFinancialProfile(profile);
       return profile;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update profile';

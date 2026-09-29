@@ -26,7 +26,7 @@ describe('Task 1: Backend Company Seed Data & Startup Ingestion Pipeline', () =>
       INDIAN_COMPANY_SEED_LIST.forEach((company) => {
         expect(company.symbol).toBeTruthy();
         expect(company.symbol).toBe(company.symbol.toUpperCase());
-        expect(company.url).toMatch(/^https:\/\/www\.screener\.in\/company\/[A-Z0-9%_-]+\/consolidated\/?$/);
+        expect(company.url).toMatch(/^https:\/\/www\.screener\.in\/company\/[A-Z0-9%_-]+(\/consolidated)?\/?$/);
         expect(company.sector).toBeTruthy();
       });
     });

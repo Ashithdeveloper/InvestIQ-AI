@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, LoginPayload, SignupPayload } from '../types';
+import { User, LoginPayload, SignupPayload, FinancialProfile } from '../types';
 import { authApi } from '../services/api/auth.api';
 import { tokenStorage } from '../services/storage/tokenStorage';
 
@@ -14,6 +14,7 @@ interface AuthState {
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
+  updateUserFinancialProfile: (financialProfile: FinancialProfile) => void;
   clearError: () => void;
 }
 
@@ -98,6 +99,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         isRestoring: false,
       });
     }
+  },
+
+  updateUserFinancialProfile(financialProfile: FinancialProfile): void {
+    set((state) => ({
+      user: state.user ? { ...state.user, financialProfile } : null,
+    }));
   },
 
   clearError(): void {

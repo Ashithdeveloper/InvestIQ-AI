@@ -124,11 +124,39 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
 
     const page = await context.newPage();
 
-    // Respectful navigation with 30s timeout
-    const response = await page.goto(url, {
-      timeout: 30000,
-      waitUntil: 'domcontentloaded',
-    });
+    // Respectful navigation with retry for transient network glitches
+    let currentUrl = url;
+    let response = null;
+    let navError: Error | null = null;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        response = await page.goto(currentUrl, {
+          timeout: 30000,
+          waitUntil: 'domcontentloaded',
+        });
+        navError = null;
+        break;
+      } catch (err) {
+        navError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+    }
+
+    if (navError) {
+      throw navError;
+    }
+
+    // If 404 on /consolidated/ URL, fallback to standalone page
+    if (response && response.status() === 404 && currentUrl.includes('/consolidated/')) {
+      currentUrl = currentUrl.replace('/consolidated/', '/');
+      response = await page.goto(currentUrl, {
+        timeout: 30000,
+        waitUntil: 'domcontentloaded',
+      });
+    }
 
     if (response && response.status() === 404) {
       const error = new Error('Company not found on Screener.in') as Error & { statusCode: number };
@@ -153,7 +181,7 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
     }
 
     // 2. Company Symbol
-    const symbolFromUrl = extractSymbolFromUrl(url);
+    const symbolFromUrl = extractSymbolFromUrl(currentUrl);
     const symbol = symbolFromUrl || companyName.split(' ')[0].toUpperCase();
 
     // 3. Sector
@@ -259,7 +287,7 @@ const scrapeCompanyData = async (url: string): Promise<ScrapedCompanyData> => {
       companyName,
       symbol,
       sector,
-      profileUrl: url,
+      profileUrl: currentUrl,
       exchange: Array.from(detectedExchanges),
       marketCap,
       sharePrice,

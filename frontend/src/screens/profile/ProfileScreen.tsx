@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Button, Header, MetricBadge, LoadingSkeleton } from '../../components/common';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useProfileStore } from '../../stores/useProfileStore';
@@ -11,6 +12,7 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
   const { profile, fetchProfile, isLoading } = useProfileStore();
 
@@ -25,7 +27,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         subtitle="Manage your credentials and financial preferences"
       />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 20) + 36 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+
         {isLoading && !profile ? (
           <LoadingSkeleton message="Loading profile..." count={2} />
         ) : (

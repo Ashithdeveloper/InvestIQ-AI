@@ -7,21 +7,27 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, Button, Card, Header } from '../../components/common';
 import { useProfileStore } from '../../stores/useProfileStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 
+import { useDashboardStore } from '../../stores/useDashboardStore';
+
 interface ProfileSetupScreenProps {
   navigation: {
     navigate: (screen: string) => void;
+    reset?: (state: { index: number; routes: Array<{ name: string }> }) => void;
     goBack?: () => void;
   };
 }
 
 export const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { profile, fetchProfile, createProfile, isLoading, error, clearError } =
     useProfileStore();
+
 
   const [age, setAge] = useState('');
   const [monthlySalary, setMonthlySalary] = useState('');
@@ -77,8 +83,18 @@ export const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({ navigati
         monthlyInvestmentBudget: parseFloat(monthlyBudget),
       });
 
-      // Navigate to personalized dashboard
-      navigation.navigate('Main');
+      // Refresh dashboard in background with new budget
+      useDashboardStore.getState().fetchDashboard().catch(() => {});
+
+      // Navigate to personalized dashboard (resetting stack so back won't return to setup)
+      if (navigation.reset) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        navigation.navigate('Main');
+      }
     } catch {
       // Error handled in store
     }
@@ -87,14 +103,23 @@ export const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({ navigati
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Header
         title="Financial Profile"
         subtitle="Complete your profile to personalize analysis"
+        onBack={navigation.goBack ? () => navigation.goBack!() : undefined}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 20) + 24 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+
         <View style={styles.introBox}>
           <Text style={styles.welcomeText}>Hello, {user?.username || 'Investor'} 👋</Text>
           <Text style={styles.introDesc}>

@@ -7,8 +7,11 @@ import {
   RefreshControl,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   Card,
   Button,
@@ -37,6 +40,7 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
   route,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const companyId = route?.params?.companyId || '';
   const initialSymbol = route?.params?.symbol || '';
   const initialName = route?.params?.companyName || '';
@@ -76,8 +80,50 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
   const symbol = data?.stockSymbol || initialSymbol || 'Stock';
   const name = data?.companyName || initialName || 'Company Analysis';
 
+  const renderCleanAiSynthesis = (rawText: string) => {
+    if (!rawText) return null;
+    const cleaned = rawText
+      .replace(/^#+\s*/gm, '')
+      .replace(/^---\s*.*$/gm, '')
+      .trim();
+
+    const paragraphs = cleaned.split(/\n\n+/).filter((p) => p.trim().length > 0);
+
+    return (
+      <View style={styles.aiBodyContainer}>
+        {paragraphs.map((p, idx) => {
+          const trimmed = p.trim();
+          const colonIdx = trimmed.indexOf(':');
+          const isHeader =
+            colonIdx > 0 &&
+            colonIdx < 45 &&
+            !trimmed.slice(0, colonIdx).includes('\n');
+          if (isHeader) {
+            const title = trimmed.slice(0, colonIdx + 1).replace(/\*\*/g, '');
+            const body = trimmed.slice(colonIdx + 1).replace(/\*\*/g, '').trim();
+            return (
+              <View key={idx} style={styles.aiSectionBlock}>
+                <Text style={styles.aiSectionHeading}>{title}</Text>
+                {body ? <Text style={styles.aiExplanation}>{body}</Text> : null}
+              </View>
+            );
+          }
+
+          return (
+            <Text key={idx} style={styles.aiExplanation}>
+              {trimmed.replace(/\*\*/g, '')}
+            </Text>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Header
         title={`${symbol} · Buy Analysis`}
         subtitle="AI-Powered Fundamental & Valuation Evaluation"
@@ -85,7 +131,12 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
       />
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 20) + 36 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -94,6 +145,7 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
           />
         }
       >
+
         {isBuyLoading && !data ? (
           <LoadingSkeleton message="Synthesizing buy-side financial data & RAG context..." count={5} />
         ) : buyError && !data ? (
@@ -214,10 +266,209 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
             <Card variant="elevated" style={styles.aiCard}>
               <View style={styles.aiHeaderRow}>
                 <Text style={styles.aiHeaderIcon}>🤖</Text>
-                <Text style={styles.aiHeaderTitle}>InvestIQ AI Synthesis</Text>
+                <View>
+                  <Text style={styles.aiHeaderTitle}>InvestIQ AI Synthesis</Text>
+                  <Text style={styles.aiHeaderSubtitle}>Executive Financial Evaluation</Text>
+                </View>
               </View>
-              <Text style={styles.aiExplanation}>{data.aiGeneratedExplanation}</Text>
+              {renderCleanAiSynthesis(data.aiGeneratedExplanation)}
             </Card>
+
+            {/* 5. Geopolitical & War Conflict Impact Assessment */}
+            {data.geopoliticalWarImpact ? (
+              <Card variant="elevated" style={styles.warCard}>
+                <View style={styles.warHeaderRow}>
+                  <View style={styles.warTitleRow}>
+                    <Text style={styles.warHeaderIcon}>⚔️</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.warHeaderTitle}>Geopolitical & War Impact Analysis</Text>
+                      <Text style={styles.warHeaderSub}>Conflict Sensitivity & Macro Transmission</Text>
+                    </View>
+                  </View>
+                  <View
+                    style={[
+                      styles.warBadge,
+                      data.geopoliticalWarImpact.vulnerabilityLevel === 'BENEFICIARY'
+                        ? styles.warBadgeBeneficiary
+                        : data.geopoliticalWarImpact.vulnerabilityLevel === 'RESILIENT'
+                        ? styles.warBadgeResilient
+                        : data.geopoliticalWarImpact.vulnerabilityLevel === 'MODERATE IMPACT'
+                        ? styles.warBadgeModerate
+                        : styles.warBadgeHigh,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.warBadgeText,
+                        data.geopoliticalWarImpact.vulnerabilityLevel === 'BENEFICIARY'
+                          ? styles.warBadgeTextBeneficiary
+                          : data.geopoliticalWarImpact.vulnerabilityLevel === 'RESILIENT'
+                          ? styles.warBadgeTextResilient
+                          : data.geopoliticalWarImpact.vulnerabilityLevel === 'MODERATE IMPACT'
+                          ? styles.warBadgeTextModerate
+                          : styles.warBadgeTextHigh,
+                      ]}
+                    >
+                      {data.geopoliticalWarImpact.vulnerabilityLevel}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* War Risk Percentage Meter */}
+                {data.geopoliticalWarImpact.warRiskPercentage !== undefined ? (
+                  <View style={styles.warRiskGaugeContainer}>
+                    <View style={styles.warRiskGaugeTopRow}>
+                      <Text style={styles.warRiskGaugeLabel}>Calculated War Risk Exposure</Text>
+                      <Text
+                        style={[
+                          styles.warRiskGaugeValue,
+                          data.geopoliticalWarImpact.warRiskPercentage <= 25
+                            ? { color: '#10B981' }
+                            : data.geopoliticalWarImpact.warRiskPercentage <= 60
+                            ? { color: '#F59E0B' }
+                            : { color: '#EF4444' },
+                        ]}
+                      >
+                        {data.geopoliticalWarImpact.warRiskPercentage}%
+                      </Text>
+                    </View>
+                    <View style={styles.gaugeTrack}>
+                      <View
+                        style={[
+                          styles.gaugeFill,
+                          {
+                            width: `${Math.min(Math.max(data.geopoliticalWarImpact.warRiskPercentage, 5), 100)}%`,
+                            backgroundColor:
+                              data.geopoliticalWarImpact.warRiskPercentage <= 25
+                                ? '#10B981'
+                                : data.geopoliticalWarImpact.warRiskPercentage <= 60
+                                ? '#F59E0B'
+                                : '#EF4444',
+                          },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.gaugeScaleRow}>
+                      <Text style={styles.gaugeScaleText}>0% (Shielded)</Text>
+                      <Text style={styles.gaugeScaleText}>50% (Moderate)</Text>
+                      <Text style={styles.gaugeScaleText}>100% (High Exposure)</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Primary War Risk Reason */}
+                {data.geopoliticalWarImpact.primaryRiskReason ? (
+                  <View style={styles.warReasonBox}>
+                    <Text style={styles.warReasonTitle}>🎯 Core Conflict Transmission Reason:</Text>
+                    <Text style={styles.warReasonText}>
+                      {data.geopoliticalWarImpact.primaryRiskReason}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Quantified Factors Breakdown */}
+                {data.geopoliticalWarImpact.warRiskFactors &&
+                data.geopoliticalWarImpact.warRiskFactors.length > 0 ? (
+                  <View style={styles.warFactorsContainer}>
+                    <Text style={styles.warFactorsHeading}>Quantified Impact Drivers</Text>
+                    {data.geopoliticalWarImpact.warRiskFactors.map((factor, fIdx) => (
+                      <View key={fIdx} style={styles.warFactorRow}>
+                        <View style={styles.warFactorLeft}>
+                          <Text style={styles.warFactorDot}>•</Text>
+                          <Text style={styles.warFactorName}>{factor.factor}</Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.warFactorWeightPill,
+                            factor.direction === 'RISK_INCREASE'
+                              ? styles.warFactorWeightNeg
+                              : styles.warFactorWeightPos,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.warFactorWeightText,
+                              factor.direction === 'RISK_INCREASE'
+                                ? styles.warFactorWeightTextNeg
+                                : styles.warFactorWeightTextPos,
+                            ]}
+                          >
+                            {factor.weightPercentage > 0 ? `+${factor.weightPercentage}%` : `${factor.weightPercentage}%`}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                <Text style={styles.warSummaryText}>{data.geopoliticalWarImpact.summary}</Text>
+
+                {/* 3 Macro Pillars */}
+                <View style={styles.warPillarsCol}>
+                  <View style={styles.warPillarBox}>
+                    <View style={styles.warPillarHeader}>
+                      <Text style={styles.warPillarEmoji}>🛢️</Text>
+                      <Text style={styles.warPillarTitle}>Crude Oil & Energy Transmission</Text>
+                    </View>
+                    <Text style={styles.warPillarBody}>
+                      {data.geopoliticalWarImpact.crudeAndEnergyImpact}
+                    </Text>
+                  </View>
+
+                  <View style={styles.warPillarBox}>
+                    <View style={styles.warPillarHeader}>
+                      <Text style={styles.warPillarEmoji}>💱</Text>
+                      <Text style={styles.warPillarTitle}>Currency & Rupee (USD/INR) Dynamics</Text>
+                    </View>
+                    <Text style={styles.warPillarBody}>
+                      {data.geopoliticalWarImpact.currencyAndForexImpact}
+                    </Text>
+                  </View>
+
+                  <View style={styles.warPillarBox}>
+                    <View style={styles.warPillarHeader}>
+                      <Text style={styles.warPillarEmoji}>🚢</Text>
+                      <Text style={styles.warPillarTitle}>Maritime Routes & Input Inflation</Text>
+                    </View>
+                    <Text style={styles.warPillarBody}>
+                      {data.geopoliticalWarImpact.supplyChainAndInflationImpact}
+                    </Text>
+                  </View>
+                </View>
+
+                {data.geopoliticalWarImpact.defenseOrGovernmentCatalyst ? (
+                  <View style={styles.warGovBox}>
+                    <Text style={styles.warGovTitle}>🛡️ Sovereign / Strategic Catalyst:</Text>
+                    <Text style={styles.warGovText}>
+                      {data.geopoliticalWarImpact.defenseOrGovernmentCatalyst}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Vulnerabilities & Mitigations */}
+                <View style={styles.warSplitGrid}>
+                  <View style={styles.warSplitCol}>
+                    <Text style={styles.warSubheading}>⚠️ Conflict Vulnerabilities</Text>
+                    {data.geopoliticalWarImpact.keyVulnerabilities.map((v, i) => (
+                      <View key={i} style={styles.warBulletRow}>
+                        <Text style={styles.warBulletIconWarn}>•</Text>
+                        <Text style={styles.warBulletTextWarn}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.warSplitCol}>
+                    <Text style={styles.warSubheading}>🛡️ Strategic Mitigations</Text>
+                    {data.geopoliticalWarImpact.strategicMitigations.map((m, i) => (
+                      <View key={i} style={styles.warBulletRow}>
+                        <Text style={styles.warBulletIconShield}>✓</Text>
+                        <Text style={styles.warBulletTextShield}>{m}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Card>
+            ) : null}
 
             {/* 5. Financial Strengths (Reasons to consider) */}
             <Text style={styles.sectionTitle}>Key Fundamental Strengths</Text>
@@ -363,15 +614,17 @@ export const BuyAnalysisScreen: React.FC<BuyAnalysisScreenProps> = ({
           </>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
+
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: '#0A0D12',
   },
+
   scroll: {
     padding: 16,
     paddingBottom: 40,
@@ -532,21 +785,221 @@ const styles = StyleSheet.create({
   aiHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   aiHeaderIcon: {
-    fontSize: 18,
-    marginRight: 8,
+    fontSize: 22,
+    marginRight: 10,
   },
   aiHeaderTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#60A5FA',
+  },
+  aiHeaderSubtitle: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  aiBodyContainer: {
+    gap: 10,
+  },
+  aiSectionBlock: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+    marginBottom: 4,
+  },
+  aiSectionHeading: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#93C5FD',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   aiExplanation: {
     fontSize: 13,
     color: '#E2E8F0',
     lineHeight: 20,
+  },
+  warCard: {
+    backgroundColor: '#0E1726',
+    borderColor: '#374151',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  warHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  warTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  warHeaderIcon: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  warHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F9FAFB',
+  },
+  warHeaderSub: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  warBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  warBadgeBeneficiary: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  warBadgeResilient: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+  },
+  warBadgeModerate: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  warBadgeHigh: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  warBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  warBadgeTextBeneficiary: {
+    color: '#34D399',
+  },
+  warBadgeTextResilient: {
+    color: '#60A5FA',
+  },
+  warBadgeTextModerate: {
+    color: '#FBBF24',
+  },
+  warBadgeTextHigh: {
+    color: '#F87171',
+  },
+  warSummaryText: {
+    fontSize: 13,
+    color: '#D1D5DB',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  warPillarsCol: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  warPillarBox: {
+    backgroundColor: '#162235',
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+  },
+  warPillarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  warPillarEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  warPillarTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  warPillarBody: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 17,
+  },
+  warGovBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  warGovTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34D399',
+    marginBottom: 2,
+  },
+  warGovText: {
+    fontSize: 12,
+    color: '#D1D5DB',
+    lineHeight: 17,
+  },
+  warSplitGrid: {
+    marginTop: 4,
+    gap: 10,
+  },
+  warSplitCol: {
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    padding: 10,
+  },
+  warSubheading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 6,
+  },
+  warBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  warBulletIconWarn: {
+    color: '#F59E0B',
+    fontSize: 14,
+    marginRight: 6,
+    lineHeight: 16,
+  },
+  warBulletTextWarn: {
+    fontSize: 11,
+    color: '#D1D5DB',
+    lineHeight: 16,
+    flex: 1,
+  },
+  warBulletIconShield: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 6,
+    lineHeight: 16,
+  },
+  warBulletTextShield: {
+    fontSize: 11,
+    color: '#D1D5DB',
+    lineHeight: 16,
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 14,
@@ -663,5 +1116,124 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  warRiskGaugeContainer: {
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  warRiskGaugeTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  warRiskGaugeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+  },
+  warRiskGaugeValue: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  gaugeTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1E293B',
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  gaugeFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  gaugeScaleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  gaugeScaleText: {
+    fontSize: 9,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  warReasonBox: {
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  warReasonTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FBBF24',
+    marginBottom: 4,
+  },
+  warReasonText: {
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
+  },
+  warFactorsContainer: {
+    marginBottom: 10,
+    gap: 6,
+  },
+  warFactorsHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  warFactorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  warFactorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  warFactorDot: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  warFactorName: {
+    fontSize: 12,
+    color: '#CBD5E1',
+    flex: 1,
+  },
+  warFactorWeightPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  warFactorWeightNeg: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  warFactorWeightPos: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  warFactorWeightText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  warFactorWeightTextNeg: {
+    color: '#F87171',
+  },
+  warFactorWeightTextPos: {
+    color: '#34D399',
   },
 });

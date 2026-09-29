@@ -13,6 +13,7 @@ import { ScenarioCalculatorScreen } from '../screens/scenario/ScenarioCalculator
 import { AiChatScreen } from '../screens/chat/AiChatScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { ProfileSetupScreen } from '../screens/profile/ProfileSetupScreen';
+import { useAuthStore } from '../stores/useAuthStore';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -83,19 +84,27 @@ const TabNavigator = () => {
 };
 
 export const AppNavigator: React.FC = () => {
+  const { user } = useAuthStore();
+  const profileCompleted = Boolean(
+    user?.financialProfile?.isCompleted &&
+    user?.financialProfile?.monthlyInvestmentBudget &&
+    user.financialProfile.monthlyInvestmentBudget > 0
+  );
+
   return (
     <Stack.Navigator
+      initialRouteName={profileCompleted ? 'Main' : 'ProfileSetup'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#0A0D12' },
       }}
     >
       <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
       <Stack.Screen name="CompanyDetail" component={CompanyDetailScreen} />
       <Stack.Screen name="Analysis" component={AnalysisScreen} />
       <Stack.Screen name="BuyAnalysis" component={BuyAnalysisScreen} />
       <Stack.Screen name="SellAnalysis" component={SellAnalysisScreen} />
-      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
     </Stack.Navigator>
   );
 };

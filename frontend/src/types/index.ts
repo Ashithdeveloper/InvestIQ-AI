@@ -16,6 +16,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  financialProfile?: FinancialProfile;
   createdAt?: string;
 }
 
@@ -96,6 +97,9 @@ export interface Company {
   financialMetrics: IFinancialMetrics;
   financialStatements?: IFinancialStatement[];
   dataSource: string;
+  riskPercentage?: number;
+  riskLevel?: string;
+  profitPercentage?: number;
   lastUpdated: string;
 }
 
@@ -118,6 +122,51 @@ export interface IFinancialMetricDetail {
   methodology?: string;
   reportingPeriod: string | null;
   formula?: string;
+}
+
+export interface IPricePoint {
+  date: string;
+  price: number;
+  timestamp?: number;
+}
+
+export interface ITimeframeData {
+  timeframe: '1D' | '5D' | '1M' | '6M' | '1Y';
+  changePercent: number;
+  changeAmount: number;
+  high: number;
+  low: number;
+  startPrice: number;
+  endPrice: number;
+  points: IPricePoint[];
+}
+
+export interface IPricePerformance {
+  currentPrice: number | null;
+  high52Week: number | null;
+  low52Week: number | null;
+  timeframes?: {
+    '1D': ITimeframeData;
+    '5D': ITimeframeData;
+    '1M': ITimeframeData;
+    '6M': ITimeframeData;
+    '1Y': ITimeframeData;
+  };
+  threeMonthChangePercent?: number;
+  threeMonthHigh?: number;
+  threeMonthLow?: number;
+  history3Month?: IPricePoint[];
+}
+
+export interface ICompanyBasicDetails {
+  companyName: string;
+  symbol: string;
+  sector: string;
+  exchange: string[];
+  marketCap: number | null;
+  sharePrice: number | null;
+  high52Week: number | null;
+  low52Week: number | null;
 }
 
 export interface FinancialAnalysisData {
@@ -149,6 +198,9 @@ export interface FinancialAnalysisData {
     reportingPeriod: string | null;
   };
   insights: string[];
+  pricePerformance?: IPricePerformance;
+  companyDetails?: ICompanyBasicDetails;
+  geopoliticalWarImpact?: GeopoliticalWarImpact;
 }
 
 // ----------------------------------------------------------------------------
@@ -180,13 +232,64 @@ export interface DashboardCompanySummary {
   } | null;
   dataSource: string;
   reportingPeriod: string | null;
+  riskPercentage?: number;
+  riskLevel?: string;
+  profitPercentage?: number;
   lastUpdated: string;
+}
+
+export interface AllocatedStock {
+  companyId: string;
+  symbol: string;
+  companyName: string;
+  sector: string;
+  sharePrice: number;
+  allocatedAmount: number;
+  allocationPercentage: number;
+  sharesToBuy: number;
+  actualInvestedAmount: number;
+  unallocatedCash: number;
+  financialStrengthScore: number;
+  keyStrengths: string[];
+  isTopRecommendation?: boolean;
+  riskPercentage?: number;
+  riskLevel?: string;
+  profitPercentage?: number;
+}
+
+export interface BoosterRecommendation {
+  companyId: string;
+  symbol: string;
+  companyName: string;
+  sector: string;
+  sharePrice: number;
+  currentAllocatedAmount: number;
+  currentShares: number;
+  suggestedExtraAmount: number;
+  newTotalAmount: number;
+  newTotalShares: number;
+  currentProjectedReturnPercentage: number;
+  boostedProjectedReturnPercentage: number;
+  projectedReturnIncreasePercentage: number;
+  analysisRationale: string;
+}
+
+export interface MonthlyAllocationPlan {
+  totalMonthlyBudget: number;
+  currency: string;
+  totalAllocatedAmount: number;
+  totalInvestedAmount: number;
+  unallocatedCash: number;
+  sectorCount: number;
+  allocations: AllocatedStock[];
+  topRecommendation: BoosterRecommendation;
 }
 
 export interface PersonalizedDashboardData {
   monthlyInvestmentBudget: number;
   currency: string;
   profileCompleted: boolean;
+  monthlyAllocationPlan?: MonthlyAllocationPlan | null;
   companies: DashboardCompanySummary[];
   lastUpdated: string;
 }
@@ -332,6 +435,29 @@ export interface HypotheticalScenarioOutcome {
   projectedProfitLoss: number;
 }
 
+export interface WarRiskFactor {
+  factor: string;
+  weightPercentage: number;
+  direction: 'RISK_INCREASE' | 'HEDGE_BUFFER' | 'NEUTRAL';
+  reason: string;
+}
+
+export interface GeopoliticalWarImpact {
+  warRiskPercentage: number;
+  warRiskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  primaryRiskReason: string;
+  warRiskFactors: WarRiskFactor[];
+  sectorSensitivity: 'VERY LOW' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  vulnerabilityLevel: 'BENEFICIARY' | 'RESILIENT' | 'MODERATE IMPACT' | 'HIGH VULNERABILITY';
+  summary: string;
+  crudeAndEnergyImpact: string;
+  currencyAndForexImpact: string;
+  supplyChainAndInflationImpact: string;
+  defenseOrGovernmentCatalyst?: string;
+  keyVulnerabilities: string[];
+  strategicMitigations: string[];
+}
+
 export interface BuyAnalysisData {
   companyName: string;
   stockSymbol: string;
@@ -356,6 +482,7 @@ export interface BuyAnalysisData {
     currentRangePositionPercent: number | null;
   };
   financialRisks: string[];
+  geopoliticalWarImpact?: GeopoliticalWarImpact;
   hypotheticalScenarios: HypotheticalScenarioOutcome[] | null;
   budgetContext: {
     monthlyBudget: number | null;

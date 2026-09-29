@@ -5,11 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Button, Input, Header, ErrorMessage } from '../../components/common';
 import { useScenarioStore } from '../../stores/useScenarioStore';
 import { useCompanyStore } from '../../stores/useCompanyStore';
 import { useProfileStore } from '../../stores/useProfileStore';
+
 
 interface ScenarioCalculatorScreenProps {
   route?: {
@@ -29,6 +33,7 @@ export const ScenarioCalculatorScreen: React.FC<ScenarioCalculatorScreenProps> =
   route,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const { profile } = useProfileStore();
   const { companies, fetchCompanies } = useCompanyStore();
   const {
@@ -98,13 +103,24 @@ export const ScenarioCalculatorScreen: React.FC<ScenarioCalculatorScreenProps> =
   const selectedCompany = companies.find((c) => c._id === selectedCompanyId);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <Header
         title="Investment Scenarios"
         subtitle="Whole-share hypothetical outcome calculator"
       />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 20) + 32 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+
         {/* Mode Toggle Tabs */}
         <View style={styles.tabRow}>
           <TouchableOpacity
@@ -340,9 +356,10 @@ export const ScenarioCalculatorScreen: React.FC<ScenarioCalculatorScreenProps> =
           </Card>
         ) : null}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

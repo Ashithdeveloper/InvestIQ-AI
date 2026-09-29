@@ -41,7 +41,7 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
 
   // ── Automobiles ───────────────────────────────────────────────────────
   { symbol: 'MARUTI', url: 'https://www.screener.in/company/MARUTI/consolidated/', sector: 'Automobiles' },
-  { symbol: 'TATAMOTORS', url: 'https://www.screener.in/company/TATAMOTORS/consolidated/', sector: 'Automobiles' },
+  { symbol: 'TATAMOTORS', url: 'https://www.screener.in/company/TATAMOTORS/', sector: 'Automobiles' },
   { symbol: 'M&M', url: 'https://www.screener.in/company/M%26M/consolidated/', sector: 'Automobiles' },
   { symbol: 'BAJAJ-AUTO', url: 'https://www.screener.in/company/BAJAJ-AUTO/consolidated/', sector: 'Automobiles' },
   { symbol: 'HEROMOTOCO', url: 'https://www.screener.in/company/HEROMOTOCO/consolidated/', sector: 'Automobiles' },
@@ -91,7 +91,7 @@ export const INDIAN_COMPANY_SEED_LIST: SeedCompany[] = [
   { symbol: 'DLF', url: 'https://www.screener.in/company/DLF/consolidated/', sector: 'Real Estate' },
 
   // ── Media & Entertainment ─────────────────────────────────────────────
-  { symbol: 'ZOMATO', url: 'https://www.screener.in/company/ZOMATO/consolidated/', sector: 'Internet Software' },
+  { symbol: 'ZOMATO', url: 'https://www.screener.in/company/ZOMATO/', sector: 'Internet Software' },
 
   // ── Capital Goods ─────────────────────────────────────────────────────
   { symbol: 'SIEMENS', url: 'https://www.screener.in/company/SIEMENS/consolidated/', sector: 'Capital Goods - Electrical' },
