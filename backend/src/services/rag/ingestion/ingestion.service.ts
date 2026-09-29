@@ -1,7 +1,7 @@
-import { getCompanyById } from './company.service';
-import { generateRagDocuments } from './ragDocument.service';
-import { generateEmbedding } from './embedding.service';
-import { deleteCompanyDocuments, upsertDocuments } from './qdrant.service';
+import { getCompanyById } from '../../company.service';
+import { generateRagDocuments } from '../context/context.service';
+import { generateEmbedding } from '../embeddings/embedding.service';
+import { deleteCompanyDocuments, upsertDocuments } from '../qdrant/qdrant.service';
 
 export interface IngestionResult {
   companyId: string;

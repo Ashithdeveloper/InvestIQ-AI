@@ -1,13 +1,11 @@
-import { ICompany } from '../models/Company.model';
-import { getCompanyById } from './company.service';
-import { calculateFinancialMetrics, IFinancialAnalysis } from './analysis.service';
-import { generateEmbedding } from './embedding.service';
-import { searchSimilarDocuments, upsertDocuments } from './qdrant.service';
-import { generateRagDocuments } from './ragDocument.service';
+import { ICompany } from '../../models/Company.model';
+import { getCompanyById } from '../company.service';
+import { calculateFinancialMetrics, IFinancialAnalysis } from '../analysis.service';
+import { retrieveRelevantFinancialChunks } from './retrieval/retrieval.service';
 import {
   generateFinancialAnalysisWithOllama,
   OllamaMessage,
-} from './ollama.service';
+} from '../ai/ollama.service';
 
 export interface RagPipelineResult {
   company: {
@@ -38,36 +36,14 @@ const runCompanyRagPipeline = async (options: {
   // 2. Perform deterministic financial calculations
   const deterministicMetrics = calculateFinancialMetrics(company);
 
-  // 3. Search vector store for relevant contextual chunks
-  const queryVector = await generateEmbedding(query);
-  let searchResults = await searchSimilarDocuments(queryVector, {
-    companyId: company._id.toString(),
-    symbol: company.symbol,
-    limit: 4,
-  });
+  // 3. Retrieve relevant financial chunks from vector store
+  const { chunks, sources, reportingPeriods } = await retrieveRelevantFinancialChunks(
+    company,
+    query,
+    4
+  );
 
-  // If vectors not yet populated for this company, ingest on the fly
-  if (searchResults.length === 0) {
-    const docs = generateRagDocuments(company);
-    const docEmbeddings = await Promise.all(
-      docs.map((d) => generateEmbedding(d.content))
-    );
-    await upsertDocuments(docs, docEmbeddings);
-    searchResults = await searchSimilarDocuments(queryVector, {
-      companyId: company._id.toString(),
-      symbol: company.symbol,
-      limit: 4,
-    });
-  }
-
-  // 4. Extract sources and reporting periods from retrieved chunks
-  const sourcesSet = new Set<string>([company.dataSource || 'Screener.in']);
-  const periodsSet = new Set<string>();
-
-  if (deterministicMetrics.reportingPeriod) {
-    periodsSet.add(deterministicMetrics.reportingPeriod);
-  }
-
+  // 4. Construct verified context
   const contextPassages: string[] = [];
 
   // Always include verified core metrics in the top context
@@ -87,12 +63,8 @@ P/E Ratio: ${deterministicMetrics.valuation.peRatio ?? 'N/A'}
 P/B Ratio: ${deterministicMetrics.valuation.pbRatio ?? 'N/A'}`
   );
 
-  // Add semantic search chunks
-  searchResults.forEach((r, idx) => {
-    sourcesSet.add(r.payload.source || 'Screener.in');
-    if (r.payload.reportingPeriod && r.payload.reportingPeriod !== 'Latest') {
-      periodsSet.add(r.payload.reportingPeriod);
-    }
+  // Add semantic search excerpts
+  chunks.forEach((r, idx) => {
     contextPassages.push(
       `--- RELEVANT EXCERPT ${idx + 1} (${r.payload.documentType} - ${r.payload.reportingPeriod}) ---\n${r.payload.content}`
     );
@@ -107,6 +79,14 @@ P/B Ratio: ${deterministicMetrics.valuation.pbRatio ?? 'N/A'}`
     conversationHistory
   );
 
+  const finalReportingPeriods = [...reportingPeriods];
+  if (
+    deterministicMetrics.reportingPeriod &&
+    !finalReportingPeriods.includes(deterministicMetrics.reportingPeriod)
+  ) {
+    finalReportingPeriods.unshift(deterministicMetrics.reportingPeriod);
+  }
+
   return {
     company: {
       id: company._id.toString(),
@@ -118,9 +98,9 @@ P/B Ratio: ${deterministicMetrics.valuation.pbRatio ?? 'N/A'}`
     },
     metrics: deterministicMetrics,
     answer: llmResponse.answer,
-    sources: Array.from(sourcesSet),
-    reportingPeriods: Array.from(periodsSet),
-    retrievedChunksCount: searchResults.length,
+    sources,
+    reportingPeriods: finalReportingPeriods,
+    retrievedChunksCount: chunks.length,
   };
 };
 

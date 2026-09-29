@@ -1,5 +1,5 @@
-import { ICompany } from '../models/Company.model';
-import { calculateFinancialMetrics } from './analysis.service';
+import { ICompany } from '../../../models/Company.model';
+import { calculateFinancialMetrics } from '../../analysis.service';
 
 export interface IRagDocument {
   id: string;
@@ -104,16 +104,16 @@ const generateRagDocuments = (company: ICompany): IRagDocument[] => {
   // 3. Period-Specific Financial Statement Documents
   for (const statement of company.financialStatements || []) {
     const periods = statement.reportingPeriods || [];
-    // Process each period (or the last 5 reporting periods for concise, rich context)
     const recentPeriodIndices = periods.map((_, i) => i).slice(-5);
 
     for (const idx of recentPeriodIndices) {
       const period = periods[idx];
       const rowsForPeriod = (statement.rows || [])
         .map((r) => {
-          const val = r.values && r.values[idx] !== undefined && r.values[idx] !== null
-            ? `₹${r.values[idx]?.toLocaleString('en-IN')} Cr`
-            : null;
+          const val =
+            r.values && r.values[idx] !== undefined && r.values[idx] !== null
+              ? `₹${r.values[idx]?.toLocaleString('en-IN')} Cr`
+              : null;
           return val ? `${r.metricName}: ${val}` : null;
         })
         .filter((r): r is string => Boolean(r));

@@ -1,6 +1,6 @@
 import { isValidObjectId } from 'mongoose';
-import ChatSession, { IChatSession } from '../models/ChatSession.model';
-import { runCompanyRagPipeline } from './ragPipeline.service';
+import ChatSession, { IChatSession } from '../../models/ChatSession.model';
+import { runCompanyRagPipeline } from '../rag/rag.service';
 import { OllamaMessage } from './ollama.service';
 
 export interface ChatServiceResponse {

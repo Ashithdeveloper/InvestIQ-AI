@@ -1,12 +1,7 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import authRouter from './routes/auth.routes';
-import profileRouter from './routes/profile.routes';
-import scraperRouter from './routes/scraper.routes';
-import companyRouter from './routes/company.routes';
-import analysisRouter from './routes/analysis.routes';
-import aiRouter from './routes/ai.routes';
+import apiRouter from './routes';
 import { errorHandler } from './middleware/error.middleware';
 import { sendError } from './utils/apiResponse';
 
@@ -31,13 +26,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Application Routes
-app.use('/api/auth', authRouter);
-app.use('/api/profile', profileRouter);
-app.use('/api/scraper', scraperRouter);
-app.use('/api/companies', companyRouter);
-app.use('/api/analysis', analysisRouter);
-app.use('/api/ai', aiRouter);
+// Primary Application Routes Router
+app.use('/api', apiRouter);
 
 // Catch 404 Not Found for undefined routes
 app.use((_req: Request, res: Response) => {

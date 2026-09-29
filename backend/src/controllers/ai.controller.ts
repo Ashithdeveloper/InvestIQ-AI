@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { runCompanyRagPipeline } from '../services/ragPipeline.service';
-import { handleFinancialChat } from '../services/chat.service';
-import { ingestCompanyFinancials } from '../services/ingestion.service';
+import { runCompanyRagPipeline, ingestCompanyFinancials } from '../services/rag';
+import { handleFinancialChat } from '../services/ai';
 import { sendSuccess, sendError } from '../utils/apiResponse';
 
 const analyzeCompany = async (

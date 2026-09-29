@@ -3,13 +3,14 @@ import app from '../src/app';
 import Company, { ICompany } from '../src/models/Company.model';
 import User from '../src/models/User.model';
 import ChatSession from '../src/models/ChatSession.model';
-import { generateEmbedding, EMBEDDING_DIMENSION } from '../src/services/embedding.service';
-import { generateRagDocuments } from '../src/services/ragDocument.service';
 import {
+  generateEmbedding,
+  EMBEDDING_DIMENSION,
+  generateRagDocuments,
   upsertDocuments,
   searchSimilarDocuments,
   deleteCompanyDocuments,
-} from '../src/services/qdrant.service';
+} from '../src/services/rag';
 
 describe('RAG, Ingestion, and AI Integration Tests', () => {
   let sampleCompany: ICompany;

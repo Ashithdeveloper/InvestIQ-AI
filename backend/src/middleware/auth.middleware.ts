@@ -35,4 +35,28 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction): voi
   }
 };
 
-export { authenticateToken };
+const optionalAuthenticateToken = (req: Request, _res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  const token = authHeader.split(' ')[1]?.trim();
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const decoded = verifyToken(token);
+    req.user = decoded;
+  } catch {
+    // Ignore invalid/expired tokens for optional authentication
+  }
+
+  next();
+};
+
+export { authenticateToken, optionalAuthenticateToken };

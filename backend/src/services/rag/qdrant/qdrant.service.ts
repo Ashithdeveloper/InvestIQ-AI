@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { EMBEDDING_DIMENSION } from './embedding.service';
-import { IRagDocument } from './ragDocument.service';
+import { EMBEDDING_DIMENSION } from '../embeddings/embedding.service';
+import { IRagDocument } from '../context/context.service';
 
 export const DEFAULT_COLLECTION_NAME =
   process.env.QDRANT_COLLECTION || 'investiq_company_financials';
