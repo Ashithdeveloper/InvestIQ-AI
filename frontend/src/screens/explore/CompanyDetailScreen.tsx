@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import {
   Card,
@@ -91,6 +92,44 @@ export const CompanyDetailScreen: React.FC<CompanyDetailScreenProps> = ({
               </View>
             </Card>
 
+            {/* AI Decision Engines */}
+            <Text style={styles.sectionHeader}>AI Investment Decision Support</Text>
+            <View style={styles.decisionRow}>
+              <TouchableOpacity
+                style={[styles.decisionBtn, styles.buyBtn]}
+                onPress={() =>
+                  navigation?.navigate('BuyAnalysis', {
+                    companyId: company._id,
+                    symbol: company.symbol,
+                    companyName: company.companyName,
+                  })
+                }
+              >
+                <Text style={styles.decisionBtnIcon}>🟢</Text>
+                <View>
+                  <Text style={styles.decisionBtnTitle}>Buy Analysis</Text>
+                  <Text style={styles.decisionBtnSub}>Valuation & Growth Catalysts</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.decisionBtn, styles.sellBtn]}
+                onPress={() =>
+                  navigation?.navigate('SellAnalysis', {
+                    companyId: company._id,
+                    symbol: company.symbol,
+                    companyName: company.companyName,
+                  })
+                }
+              >
+                <Text style={styles.decisionBtnIcon}>🔴</Text>
+                <View>
+                  <Text style={styles.decisionBtnTitle}>Sell Analysis</Text>
+                  <Text style={styles.decisionBtnSub}>Risks, Deterioration & P&L</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
             {/* Quick Action Navigation */}
             <View style={styles.actionRow}>
               <Button
@@ -106,7 +145,7 @@ export const CompanyDetailScreen: React.FC<CompanyDetailScreenProps> = ({
                 style={styles.actionBtn}
               />
               <Button
-                title="Run Scenario"
+                title="Run Scenario Simulation"
                 onPress={() =>
                   navigation?.navigate('Scenarios', {
                     companyId: company._id,
@@ -120,6 +159,7 @@ export const CompanyDetailScreen: React.FC<CompanyDetailScreenProps> = ({
                 style={styles.actionBtn}
               />
             </View>
+
 
             {/* Core Financial Metrics */}
             <Text style={styles.sectionHeader}>Key Financial Metrics</Text>
@@ -294,6 +334,41 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 8,
   },
+  decisionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  decisionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  buyBtn: {
+    backgroundColor: '#0D231A',
+    borderColor: '#059669',
+  },
+  sellBtn: {
+    backgroundColor: '#261214',
+    borderColor: '#DC2626',
+  },
+  decisionBtnIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  decisionBtnTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F9FAFB',
+  },
+  decisionBtnSub: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
   metricGrid: {
     flexDirection: 'row',
   },
@@ -314,3 +389,4 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+

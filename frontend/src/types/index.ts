@@ -317,3 +317,118 @@ export interface SendChatMessagePayload {
   message: string;
   sessionId?: string;
 }
+
+// ----------------------------------------------------------------------------
+// 8. AI Buy & Sell Analysis Types
+// ----------------------------------------------------------------------------
+export interface HypotheticalScenarioOutcome {
+  scenarioName: string;
+  assumedChangePercent: number;
+  projectedPrice: number;
+  purchasableShares: number;
+  investedCapital: number;
+  unallocatedCash: number;
+  projectedValue: number;
+  projectedProfitLoss: number;
+}
+
+export interface BuyAnalysisData {
+  companyName: string;
+  stockSymbol: string;
+  latestAvailablePrice: number | null;
+  dataTimestamp: string;
+  financialStrengths: string[];
+  profitabilityAnalysis: {
+    revenueGrowthYoY: number | null;
+    netProfitMargin: number | null;
+    operatingProfitMargin: number | null;
+    reportingPeriod: string | null;
+  };
+  valuationAnalysis: {
+    peRatio: number | null;
+    pbRatio: number | null;
+    evToEbitda: number | null;
+    reportingPeriod: string | null;
+  };
+  historicalPerformance: {
+    high52Week: number | null;
+    low52Week: number | null;
+    currentRangePositionPercent: number | null;
+  };
+  financialRisks: string[];
+  hypotheticalScenarios: HypotheticalScenarioOutcome[] | null;
+  budgetContext: {
+    monthlyBudget: number | null;
+    purchasableShares: number | null;
+    note: string | null;
+  } | null;
+  keyAssumptions: string[];
+  dataSources: string[];
+  aiGeneratedExplanation: string;
+  disclaimer: string;
+}
+
+export interface BuyAnalysisPayload {
+  companyId: string;
+  investmentAmount?: number;
+  investmentDuration?: string | number;
+}
+
+export interface HypotheticalProfitLossOutcome {
+  purchasePrice: number;
+  currentPrice: number;
+  quantityHeld: number;
+  investedAmount: number;
+  currentValue: number;
+  profitLoss: number;
+  profitLossPercent: number;
+  status: 'PROFIT' | 'LOSS' | 'BREAKEVEN';
+}
+
+export interface SellAnalysisData {
+  companyName: string;
+  stockSymbol: string;
+  latestAvailablePrice: number | null;
+  dataTimestamp: string;
+  financialPerformanceChanges: string[];
+  profitabilityChanges: {
+    revenueGrowthYoY: number | null;
+    netProfitMargin: number | null;
+    operatingProfitMargin: number | null;
+    reportingPeriod: string | null;
+  };
+  cashFlowAnalysis: {
+    freeCashFlow: number | null;
+    reportingPeriod: string | null;
+    status: string;
+  };
+  debtAnalysis: {
+    debtToEquity: number | null;
+    reportingPeriod: string | null;
+    leverageRisk: string;
+  };
+  valuationConsiderations: {
+    peRatio: number | null;
+    pbRatio: number | null;
+    evaluation: string;
+  };
+  historicalPriceMovement: {
+    high52Week: number | null;
+    low52Week: number | null;
+    currentPositionPercent: number | null;
+  };
+  potentialFinancialRisks: string[];
+  reasonsToHold: string[];
+  hypotheticalProfitLoss: HypotheticalProfitLossOutcome | null;
+  sourceInformation: string[];
+  aiGeneratedExplanation: string;
+  disclaimer: string;
+}
+
+export interface SellAnalysisPayload {
+  companyId: string;
+  purchasePrice?: number;
+  quantityHeld?: number;
+  sharesHeld?: number;
+}
+
