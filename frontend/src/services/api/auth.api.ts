@@ -19,10 +19,12 @@ export const authApi = {
   },
 
   async getMe(): Promise<{ user: User }> {
-    const res = await apiClient.get<ApiResponse<{ user: User }>>('/auth/me');
+    const res = await apiClient.get<ApiResponse<User | { user: User }>>('/auth/me');
     if (!res.data.data) {
       throw new Error(res.data.message || 'Failed to fetch current user');
     }
-    return res.data.data;
+    const raw = res.data.data;
+    const user: User = (raw as { user?: User }).user ? (raw as { user: User }).user : (raw as User);
+    return { user };
   },
 };

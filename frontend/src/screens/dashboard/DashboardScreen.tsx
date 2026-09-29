@@ -39,12 +39,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const [selectedBoosterExtra, setSelectedBoosterExtra] = useState<number>(2000);
 
   useEffect(() => {
-    if (user && user.financialProfile && !user.financialProfile.isCompleted) {
-      navigation.navigate('ProfileSetup');
-      return;
-    }
     fetchDashboard();
-  }, [user]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -156,7 +152,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         </View>
 
         {/* Incomplete Profile Notice Banner */}
-        {user?.financialProfile && !user.financialProfile.isCompleted ? (
+        {!data?.monthlyInvestmentBudget &&
+        !user?.financialProfile?.monthlyInvestmentBudget &&
+        !profile?.monthlyInvestmentBudget ? (
           <Card variant="elevated" style={styles.incompleteCard}>
             <Text style={styles.incompleteTitle}>⚠️ Financial Profile Incomplete</Text>
             <Text style={styles.incompleteBody}>

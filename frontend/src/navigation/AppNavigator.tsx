@@ -84,16 +84,9 @@ const TabNavigator = () => {
 };
 
 export const AppNavigator: React.FC = () => {
-  const { user } = useAuthStore();
-  const profileCompleted = Boolean(
-    user?.financialProfile?.isCompleted &&
-    user?.financialProfile?.monthlyInvestmentBudget &&
-    user.financialProfile.monthlyInvestmentBudget > 0
-  );
-
   return (
     <Stack.Navigator
-      initialRouteName={profileCompleted ? 'Main' : 'ProfileSetup'}
+      initialRouteName="Main"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#0A0D12' },

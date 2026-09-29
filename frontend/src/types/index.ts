@@ -483,7 +483,12 @@ export interface BuyAnalysisData {
   };
   financialRisks: string[];
   geopoliticalWarImpact?: GeopoliticalWarImpact;
-  hypotheticalScenarios: HypotheticalScenarioOutcome[] | null;
+  riskPercentage?: number;
+  riskLevel?: 'LOW' | 'MODERATE' | 'HIGH';
+  riskReason?: string;
+  profitPercentage?: number;
+  profitReason?: string;
+  hypotheticalScenarios?: HypotheticalScenarioOutcome[] | null;
   budgetContext: {
     monthlyBudget: number | null;
     purchasableShares: number | null;

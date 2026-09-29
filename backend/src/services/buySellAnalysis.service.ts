@@ -60,6 +60,11 @@ export interface BuyAnalysisResult {
   };
   financialRisks: string[];
   geopoliticalWarImpact: GeopoliticalWarImpact;
+  riskPercentage: number;
+  riskLevel: 'LOW' | 'MODERATE' | 'HIGH';
+  riskReason: string;
+  profitPercentage: number;
+  profitReason: string;
   hypotheticalScenarios: Array<{
     scenarioName: string;
     assumedChangePercent: number;
@@ -731,6 +736,34 @@ const generateBuyAnalysis = async (options: {
     query: `Provide an objective buy-side financial evaluation for ${company.companyName} (${company.symbol})${durationText}. Analyze its valuation multiples (P/E: ${analysis.valuation.peRatio ?? 'N/A'}, P/B: ${analysis.valuation.pbRatio ?? 'N/A'}), profitability trends (Net Margin: ${analysis.profitability.netProfitMargin ?? 'N/A'}%), balance sheet strength (Debt/Equity: ${analysis.debtToEquity.value ?? 'N/A'}), and cash flow stability (FCF: ₹${analysis.freeCashFlow.value ?? 'N/A'} Cr). Identify both fundamental catalysts and downside risks. Do not provide buy guarantees or return assurances. Use verified financial data strictly.`,
   });
 
+  // 6. Risk and Profit Percentage with Short Reasons
+  const warRisk = geopoliticalWarImpact?.warRiskPercentage ?? 35;
+  const deRatio = analysis.debtToEquity.value ?? 0.5;
+  let riskPercentage = warRisk;
+  if (deRatio > 1.5) riskPercentage = Math.min(95, riskPercentage + 15);
+  else if (deRatio < 0.3) riskPercentage = Math.max(10, riskPercentage - 8);
+
+  const riskLevel: 'LOW' | 'MODERATE' | 'HIGH' =
+    riskPercentage <= 28 ? 'LOW' : riskPercentage <= 58 ? 'MODERATE' : 'HIGH';
+
+  const riskReason =
+    geopoliticalWarImpact?.primaryRiskReason ||
+    (riskPercentage <= 28
+      ? 'Low risk supported by disciplined balance sheet leverage, defensive sector positioning, and robust cash generation.'
+      : riskPercentage <= 58
+      ? 'Moderate risk driven by macroeconomic transmission channels, commodity price swings, and working capital cycles.'
+      : 'Elevated risk due to cyclical sector volatility, input cost inflation, and high capital intensity.');
+
+  const roeVal = analysis.returnOnEquity.value ?? 14;
+  const growthVal = analysis.profitability.revenueGrowthYoY ?? 8;
+  const profitPercentage = parseFloat(
+    Math.max(7.5, Math.min(36, roeVal * 0.85 + Math.max(0, growthVal) * 0.35)).toFixed(1)
+  );
+
+  const profitReason = `Derived from ${roeVal}% ROE capital efficiency combined with ${
+    growthVal > 0 ? `+${growthVal}% YoY revenue expansion` : 'operating margin defense'
+  } and stable business reinvestment rates.`;
+
   return {
     companyName: company.companyName,
     stockSymbol: company.symbol,
@@ -746,6 +779,11 @@ const generateBuyAnalysis = async (options: {
     },
     financialRisks: risks,
     geopoliticalWarImpact,
+    riskPercentage,
+    riskLevel,
+    riskReason,
+    profitPercentage,
+    profitReason,
     hypotheticalScenarios,
     budgetContext,
     keyAssumptions: [

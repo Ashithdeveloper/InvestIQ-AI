@@ -412,13 +412,8 @@ const getPersonalizedDashboard = async (
   const profile = user.financialProfile;
 
   // Validate financial profile completeness
-  if (
-    !profile ||
-    !profile.isCompleted ||
-    profile.monthlyInvestmentBudget === null ||
-    profile.monthlyInvestmentBudget === undefined ||
-    profile.monthlyInvestmentBudget <= 0
-  ) {
+  const hasBudget = Boolean(profile?.monthlyInvestmentBudget && profile.monthlyInvestmentBudget > 0);
+  if (!profile || (!profile.isCompleted && !hasBudget)) {
     const error = new Error(
       'Financial profile is incomplete. Please complete your profile to access the personalized dashboard.'
     ) as Error & { statusCode: number; data?: Record<string, unknown> };
@@ -430,7 +425,9 @@ const getPersonalizedDashboard = async (
     throw error;
   }
 
-  const userBudget = profile.monthlyInvestmentBudget;
+  const userBudget: number = (profile.monthlyInvestmentBudget && profile.monthlyInvestmentBudget > 0)
+    ? profile.monthlyInvestmentBudget
+    : 10000;
 
   // Fetch verified Indian companies from MongoDB
   const companies = await Company.find().sort({ marketCap: -1, companyName: 1 });
