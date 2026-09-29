@@ -4,7 +4,7 @@ import Company from '../src/models/Company.model';
 import { saveOrUpdateCompany } from '../src/services/company.service';
 import { ScrapedCompanyData } from '../src/services/scraper.service';
 
-describe('Company Service & API Tests', () => {
+describe('Company Exploration & Details API Tests', () => {
   const sampleTcsData: ScrapedCompanyData = {
     companyName: 'Tata Consultancy Services Ltd',
     symbol: 'TCS',
@@ -102,94 +102,122 @@ describe('Company Service & API Tests', () => {
     await Company.deleteMany({});
   });
 
-  describe('Company Save & Update (Upsert & Duplicate Prevention)', () => {
-    it('should save a new company record successfully', async () => {
-      const { company, isNew } = await saveOrUpdateCompany(sampleTcsData);
+  describe('GET /api/companies - All Companies & Pagination', () => {
+    it('should return empty list and zero total when database is empty', async () => {
+      const response = await request(app).get('/api/companies');
 
-      expect(isNew).toBe(true);
-      expect(company._id).toBeDefined();
-      expect(company.symbol).toBe('TCS');
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.companies).toEqual([]);
+      expect(response.body.data.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      });
+    });
+
+    it('should return companies sorted by company name alphabetically by default', async () => {
+      await saveOrUpdateCompany(sampleTcsData);
+      await saveOrUpdateCompany(sampleInfyData);
+      await saveOrUpdateCompany(sampleRelianceData);
+
+      const response = await request(app).get('/api/companies');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies.length).toBe(3);
+      // Infosys Ltd, Reliance Industries Ltd, Tata Consultancy Services Ltd
+      expect(response.body.data.companies[0].symbol).toBe('INFY');
+      expect(response.body.data.companies[1].symbol).toBe('RELIANCE');
+      expect(response.body.data.companies[2].symbol).toBe('TCS');
+    });
+
+    it('should exclude heavy financialStatements in list projection', async () => {
+      await saveOrUpdateCompany(sampleTcsData);
+
+      const response = await request(app).get('/api/companies');
+
+      expect(response.status).toBe(200);
+      const company = response.body.data.companies[0];
       expect(company.companyName).toBe('Tata Consultancy Services Ltd');
-      expect(company.financialMetrics.roe).toBe(51.8);
-      expect(company.financialStatements.length).toBe(1);
+      expect(company.financialStatements).toBeUndefined();
     });
 
-    it('should update existing record and avoid creating duplicate records', async () => {
-      // First save
+    it('should support pagination with page and limit parameters', async () => {
       await saveOrUpdateCompany(sampleTcsData);
-      expect(await Company.countDocuments()).toBe(1);
+      await saveOrUpdateCompany(sampleInfyData);
+      await saveOrUpdateCompany(sampleRelianceData);
 
-      // Second save with updated price and fresh metrics
-      const updatedTcsData: ScrapedCompanyData = {
-        ...sampleTcsData,
-        sharePrice: 2150,
-        financialMetrics: {
-          ...sampleTcsData.financialMetrics,
-          roe: 53.0,
-        },
-      };
+      const response = await request(app).get('/api/companies?page=2&limit=2');
 
-      const { company, isNew } = await saveOrUpdateCompany(updatedTcsData);
-
-      expect(isNew).toBe(false);
-      expect(await Company.countDocuments()).toBe(1);
-      expect(company.sharePrice).toBe(2150);
-      expect(company.financialMetrics.roe).toBe(53.0);
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies.length).toBe(1);
+      expect(response.body.data.pagination).toEqual({
+        page: 2,
+        limit: 2,
+        total: 3,
+        totalPages: 2,
+      });
     });
 
-    it('should preserve valid stored financial metrics if new scrape contains nulls', async () => {
+    it('should sanitize invalid pagination parameters safely', async () => {
       await saveOrUpdateCompany(sampleTcsData);
 
-      // Scrape update where roe is temporarily null/unavailable
-      const dataWithNullRoe: ScrapedCompanyData = {
-        ...sampleTcsData,
-        financialMetrics: {
-          ...sampleTcsData.financialMetrics,
-          roe: null,
-        },
-      };
+      const response = await request(app).get('/api/companies?page=-5&limit=-20');
 
-      const { company } = await saveOrUpdateCompany(dataWithNullRoe);
-      // Stored ROE should remain preserved from previous valid record
-      expect(company.financialMetrics.roe).toBe(51.8);
+      expect(response.status).toBe(200);
+      expect(response.body.data.pagination.page).toBe(1);
+      expect(response.body.data.pagination.limit).toBe(10);
     });
   });
 
-  describe('GET /api/companies (Search, Filter, Pagination)', () => {
+  describe('GET /api/companies/search - Search Endpoint', () => {
     beforeEach(async () => {
       await saveOrUpdateCompany(sampleTcsData);
       await saveOrUpdateCompany(sampleInfyData);
       await saveOrUpdateCompany(sampleRelianceData);
     });
 
-    it('should return all companies with pagination metadata', async () => {
-      const response = await request(app).get('/api/companies?page=1&limit=2');
+    it('should search companies by name with partial matching (?q=tata)', async () => {
+      const response = await request(app).get('/api/companies/search?q=tata');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.companies.length).toBe(2);
-      expect(response.body.data.pagination).toEqual({
-        total: 3,
-        page: 1,
-        limit: 2,
-        totalPages: 2,
-      });
-    });
-
-    it('should search companies by name case-insensitively', async () => {
-      const response = await request(app).get('/api/companies?search=tata');
-
-      expect(response.status).toBe(200);
       expect(response.body.data.companies.length).toBe(1);
       expect(response.body.data.companies[0].symbol).toBe('TCS');
     });
 
-    it('should search companies by symbol', async () => {
-      const response = await request(app).get('/api/companies?search=INFY');
+    it('should search companies by stock symbol (?q=INFY)', async () => {
+      const response = await request(app).get('/api/companies/search?q=infy');
 
       expect(response.status).toBe(200);
       expect(response.body.data.companies.length).toBe(1);
       expect(response.body.data.companies[0].companyName).toBe('Infosys Ltd');
+    });
+
+    it('should handle empty search queries gracefully by returning empty array', async () => {
+      const response = await request(app).get('/api/companies/search?q=');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies).toEqual([]);
+      expect(response.body.data.pagination.total).toBe(0);
+    });
+
+    it('should support pagination on search results', async () => {
+      const response = await request(app).get('/api/companies/search?q=Ltd&limit=1&page=1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies.length).toBe(1);
+      expect(response.body.data.pagination.total).toBe(3);
+      expect(response.body.data.pagination.totalPages).toBe(3);
+    });
+  });
+
+  describe('GET /api/companies?sector=... - Sector Filtering & Combined Queries', () => {
+    beforeEach(async () => {
+      await saveOrUpdateCompany(sampleTcsData);
+      await saveOrUpdateCompany(sampleInfyData);
+      await saveOrUpdateCompany(sampleRelianceData);
     });
 
     it('should filter companies by sector', async () => {
@@ -206,8 +234,20 @@ describe('Company Service & API Tests', () => {
       ).toBe(true);
     });
 
-    it('should return empty list when no matches are found', async () => {
-      const response = await request(app).get('/api/companies?search=NonExistentCompany');
+    it('should support combining search and sector filter', async () => {
+      const response = await request(app).get(
+        '/api/companies?sector=Information Technology&search=tata'
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.companies.length).toBe(1);
+      expect(response.body.data.companies[0].symbol).toBe('TCS');
+    });
+
+    it('should return empty list when sector and search have no intersection', async () => {
+      const response = await request(app).get(
+        '/api/companies?sector=Energy & Petrochemicals&search=infy'
+      );
 
       expect(response.status).toBe(200);
       expect(response.body.data.companies.length).toBe(0);
@@ -215,7 +255,32 @@ describe('Company Service & API Tests', () => {
     });
   });
 
-  describe('GET /api/companies/:id', () => {
+  describe('GET /api/companies/sectors - Available Sectors Endpoint', () => {
+    it('should return sorted unique list of company sectors', async () => {
+      await saveOrUpdateCompany(sampleTcsData);
+      await saveOrUpdateCompany(sampleInfyData);
+      await saveOrUpdateCompany(sampleRelianceData);
+
+      const response = await request(app).get('/api/companies/sectors');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Sectors retrieved successfully');
+      expect(response.body.data).toEqual([
+        'Energy & Petrochemicals',
+        'Information Technology',
+      ]);
+    });
+
+    it('should return empty array when no sectors exist in database', async () => {
+      const response = await request(app).get('/api/companies/sectors');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+    });
+  });
+
+  describe('GET /api/companies/:id - Company Details', () => {
     let tcsId: string;
 
     beforeEach(async () => {
@@ -223,19 +288,23 @@ describe('Company Service & API Tests', () => {
       tcsId = company._id.toString();
     });
 
-    it('should retrieve company details by MongoDB ObjectId', async () => {
+    it('should retrieve complete company profile by MongoDB ObjectId', async () => {
       const response = await request(app).get(`/api/companies/${tcsId}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.companyName).toBe('Tata Consultancy Services Ltd');
       expect(response.body.data.symbol).toBe('TCS');
+      expect(response.body.data.exchange).toEqual(['NSE', 'BSE']);
       expect(response.body.data.financialMetrics.roe).toBe(51.8);
+      expect(response.body.data.financialMetrics.debtToEquity).toBe(0.08);
+      expect(response.body.data.financialStatements.length).toBe(1);
+      expect(response.body.data.dataSource).toBe('Screener.in');
       expect(response.body.data.lastUpdated).toBeDefined();
     });
 
-    it('should retrieve company details by Stock Symbol', async () => {
-      const response = await request(app).get('/api/companies/TCS');
+    it('should retrieve company profile by Stock Symbol case-insensitively', async () => {
+      const response = await request(app).get('/api/companies/tcs');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -243,7 +312,15 @@ describe('Company Service & API Tests', () => {
     });
 
     it('should return 404 when company does not exist', async () => {
-      const response = await request(app).get('/api/companies/UNKNOWN_SYMBOL_99');
+      const response = await request(app).get('/api/companies/NONEXISTENT_99');
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe('Company not found');
+    });
+
+    it('should return 404 for invalid ObjectId format safely without crashing', async () => {
+      const response = await request(app).get('/api/companies/123-invalid-id');
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);

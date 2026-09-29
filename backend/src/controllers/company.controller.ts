@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { getCompanies, getCompanyById } from '../services/company.service';
-import { getCompaniesQuerySchema } from '../validators/scraper.validator';
+import {
+  getCompanies,
+  searchCompanies,
+  getAvailableSectors,
+  getCompanyById,
+} from '../services/company.service';
+import {
+  getCompaniesQuerySchema,
+  searchCompaniesQuerySchema,
+} from '../validators/company.validator';
 import { sendSuccess } from '../utils/apiResponse';
 
 const getAllCompanies = async (
@@ -13,6 +21,38 @@ const getAllCompanies = async (
     const result = await getCompanies(validatedQuery);
 
     sendSuccess(res, 200, 'Companies retrieved successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const searchCompaniesHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const validatedQuery = searchCompaniesQuerySchema.parse(req.query);
+    const result = await searchCompanies({
+      q: validatedQuery.q || validatedQuery.search,
+      page: validatedQuery.page,
+      limit: validatedQuery.limit,
+    });
+
+    sendSuccess(res, 200, 'Companies retrieved successfully', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getSectors = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sectors = await getAvailableSectors();
+    sendSuccess(res, 200, 'Sectors retrieved successfully', sectors);
   } catch (error) {
     next(error);
   }
@@ -33,4 +73,9 @@ const getCompanyDetails = async (
   }
 };
 
-export { getAllCompanies, getCompanyDetails };
+export {
+  getAllCompanies,
+  searchCompaniesHandler,
+  getSectors,
+  getCompanyDetails,
+};

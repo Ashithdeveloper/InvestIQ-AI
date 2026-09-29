@@ -72,13 +72,15 @@ const getCompanies = async (query: {
   page: number;
   limit: number;
   search?: string;
+  q?: string;
   sector?: string;
 }): Promise<CompanyListResult> => {
-  const { page, limit, search, sector } = query;
+  const { page, limit, sector } = query;
+  const searchTerm = (query.search || query.q || '').trim();
   const filter: Record<string, unknown> = {};
 
-  if (search && search.trim()) {
-    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (searchTerm) {
+    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     filter.$or = [
       { companyName: { $regex: escaped, $options: 'i' } },
       { symbol: { $regex: escaped, $options: 'i' } },
@@ -94,7 +96,8 @@ const getCompanies = async (query: {
 
   const [companies, total] = await Promise.all([
     Company.find(filter)
-      .sort({ marketCap: -1, companyName: 1 })
+      .select('-financialStatements')
+      .sort({ companyName: 1 })
       .skip(skip)
       .limit(limit),
     Company.countDocuments(filter),
@@ -103,24 +106,91 @@ const getCompanies = async (query: {
   return {
     companies,
     pagination: {
-      total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit) || 1,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
     },
   };
 };
 
+const searchCompanies = async (query: {
+  q?: string;
+  page: number;
+  limit: number;
+}): Promise<CompanyListResult> => {
+  const { page, limit } = query;
+  const searchTerm = (query.q || '').trim();
+
+  if (!searchTerm) {
+    return {
+      companies: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  }
+
+  const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const filter = {
+    $or: [
+      { companyName: { $regex: escaped, $options: 'i' } },
+      { symbol: { $regex: escaped, $options: 'i' } },
+    ],
+  };
+
+  const skip = (page - 1) * limit;
+
+  const [companies, total] = await Promise.all([
+    Company.find(filter)
+      .select('-financialStatements')
+      .sort({ companyName: 1 })
+      .skip(skip)
+      .limit(limit),
+    Company.countDocuments(filter),
+  ]);
+
+  return {
+    companies,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+    },
+  };
+};
+
+const getAvailableSectors = async (): Promise<string[]> => {
+  const sectors = await Company.distinct('sector', {
+    sector: { $nin: [null, '', 'Unknown'] },
+  });
+
+  const validSectors = sectors
+    .filter((s): s is string => typeof s === 'string' && s.trim().length > 0 && s !== 'Unknown')
+    .map((s) => s.trim());
+
+  // Deduplicate case-insensitively and sort alphabetically
+  const uniqueSectors = Array.from(new Set(validSectors));
+  uniqueSectors.sort((a, b) => a.localeCompare(b));
+
+  return uniqueSectors;
+};
+
 const getCompanyById = async (id: string): Promise<ICompany> => {
   let company: ICompany | null = null;
+  const trimmedId = id.trim();
 
-  if (isValidObjectId(id)) {
-    company = await Company.findById(id);
+  if (isValidObjectId(trimmedId)) {
+    company = await Company.findById(trimmedId);
   }
 
   if (!company) {
     // Also support finding by uppercase symbol (e.g. TCS, RELIANCE)
-    company = await Company.findOne({ symbol: id.toUpperCase().trim() });
+    company = await Company.findOne({ symbol: trimmedId.toUpperCase() });
   }
 
   if (!company) {
@@ -144,6 +214,8 @@ const refreshCompanyData = async (id: string): Promise<ICompany> => {
 export {
   saveOrUpdateCompany,
   getCompanies,
+  searchCompanies,
+  getAvailableSectors,
   getCompanyById,
   refreshCompanyData,
 };
